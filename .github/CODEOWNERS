@@ -1,0 +1,25 @@
+# CODEOWNERS
+
+# Database: migrasjoner, tester, policies
+db/migrations/*   @deg
+db/tests/*        @deg
+
+# RLS-workflow
+.github/workflows/rls-verify.yml   @deg
+
+# API-ruter – krever teamreview
+app/api/**        @teamet
+
+# Bibliotek som håndterer GUC/middleware/org/mfa
+lib/db.ts         @deg
+lib/withGUC.ts    @deg
+lib/org-context.ts @deg
+lib/org-hint.ts   @deg
+lib/assertMFA.ts  @deg
+lib/audit.ts      @deg
+
+# Konfig
+Makefile          @deg
+playwright.config.ts @teamet
+
+
