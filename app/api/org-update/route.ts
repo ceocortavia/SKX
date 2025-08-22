@@ -5,13 +5,14 @@ import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
 import { assertMFA } from "@/lib/assertMFA";
 
+// Oppdater ufarlig felt: homepage_domain (RLS blokkerer BRREG-felt)
 export async function POST(req: Request) {
   const { userId: clerkUserId } = auth();
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { domain } = body as { domain?: string };
-  if (!domain) return NextResponse.json({ error: "Missing domain" }, { status: 400 });
+  const { homepage_domain } = body as { homepage_domain?: string };
+  if (!homepage_domain) return NextResponse.json({ error: "Missing homepage_domain" }, { status: 400 });
 
   const client = await pool.connect();
   try {
@@ -23,26 +24,21 @@ export async function POST(req: Request) {
     const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId });
     if (!orgId) return NextResponse.json({ error: "No organization context" }, { status: 400 });
 
-    // Krev MFA=on for admin-operasjon
     const mfa: "on" | "off" = (await assertMFA(10)) ? "on" : "off";
-    if (mfa === "off") {
-      return NextResponse.json({ error: "MFA required" }, { status: 401 });
-    }
+    if (mfa === "off") return NextResponse.json({ error: "MFA required" }, { status: 401 });
 
-    const created = await withGUC(
+    const updated = await withGUC(
       { userId, clerkUserId, clerkUserEmail: email, orgId, orgRole, orgStatus, mfa },
       async (tx) => {
-        const ins = await tx.query(
-          `insert into public.organization_domains (organization_id, domain, verified)
-           values ($1, $2, false)
-           returning id, domain, verified`,
-          [orgId, domain]
+        const res = await tx.query(
+          `update public.organizations set homepage_domain=$2 where id=$1 returning id, homepage_domain`,
+          [orgId, homepage_domain]
         );
-        return ins.rows[0];
+        return res.rows[0] ?? null;
       }
     );
-
-    return NextResponse.json({ created });
+    if (!updated) return NextResponse.json({ error: "No update" }, { status: 403 });
+    return NextResponse.json({ updated });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Error" }, { status: 403 });
   } finally {
