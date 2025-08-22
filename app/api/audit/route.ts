@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     const resp = NextResponse.json({ events: data });
     if (orgId) {
       resp.headers.set("x-org-id", orgId);
-      setOrgCookie(orgId);
+      setOrgCookie(resp, orgId);
     }
     return resp;
   } catch (e: any) {

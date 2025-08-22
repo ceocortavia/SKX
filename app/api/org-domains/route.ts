@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const res = NextResponse.json({ created });
     if (orgId) {
       res.headers.set("x-org-id", orgId);
-      setOrgCookie(orgId);
+      setOrgCookie(res, orgId);
     }
     return res;
   } catch (e: any) {
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
 
     const resp = NextResponse.json({ domains: data });
     resp.headers.set("x-org-id", orgId);
-    setOrgCookie(orgId);
+    setOrgCookie(resp, orgId);
     return resp;
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Error" }, { status: 403 });
