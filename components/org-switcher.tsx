@@ -23,7 +23,7 @@ export default function OrgSwitcher() {
   }
 
   return (
-    <div>
+    <div data-testid="org-switcher">
       <select
         disabled={loading || items.length === 0}
         value={orgId ?? ""}
