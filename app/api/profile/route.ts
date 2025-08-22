@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { withGUC } from "@/lib/withGUC";
 import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
+import { getOrgHint, setOrgCookie } from "@/lib/org-hint";
 
 export async function GET(req: Request) {
   const { userId: clerkUserId } = auth();
@@ -20,8 +21,7 @@ export async function GET(req: Request) {
     const userId: string = ures.rows[0].id;
     const email: string = ures.rows[0].primary_email;
 
-    const url = new URL(req.url);
-    const hintedOrgId = url.searchParams.get("orgId");
+    const { hintedOrgId } = getOrgHint(req);
     const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId, hintedOrgId });
 
     const mfa: "on" | "off" = "off";
@@ -43,7 +43,12 @@ export async function GET(req: Request) {
       }
     );
 
-    return NextResponse.json(data);
+    const res = NextResponse.json(data);
+    if (orgId) {
+      res.headers.set("x-org-id", orgId);
+      setOrgCookie(orgId);
+    }
+    return res;
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Error" }, { status: 500 });
   } finally {

@@ -4,6 +4,7 @@ import { withGUC } from "@/lib/withGUC";
 import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
 import { assertMFA } from "@/lib/assertMFA";
+import { getOrgHint, setOrgCookie } from "@/lib/org-hint";
 
 export async function POST(req: Request) {
   const { userId: clerkUserId } = auth();
@@ -20,7 +21,8 @@ export async function POST(req: Request) {
     const userId: string = u.rows[0].id;
     const email: string = u.rows[0].primary_email;
 
-    const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId });
+    const { hintedOrgId } = getOrgHint(req);
+    const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId, hintedOrgId });
     if (!orgId) return NextResponse.json({ error: "No organization context" }, { status: 400 });
 
     // Krev MFA=on for admin-operasjon
@@ -42,7 +44,12 @@ export async function POST(req: Request) {
       }
     );
 
-    return NextResponse.json({ created });
+    const res = NextResponse.json({ created });
+    if (orgId) {
+      res.headers.set("x-org-id", orgId);
+      setOrgCookie(orgId);
+    }
+    return res;
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Error" }, { status: 403 });
   } finally {
