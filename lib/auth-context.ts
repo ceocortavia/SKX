@@ -8,7 +8,7 @@ type AuthCtx = {
 };
 
 export async function getAuthContext(req?: Request): Promise<AuthCtx> {
-  const h: Headers = (req?.headers as Headers | undefined) ?? nextHeaders();
+  const h = req?.headers ?? nextHeaders();
   const testBypass = process.env.TEST_AUTH_BYPASS === "1";
 
   if (testBypass) {
