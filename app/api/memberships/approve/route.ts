@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json(result);
     res.headers.set("x-org-id", orgId);
-    setOrgCookie(orgId);
+    setOrgCookie(res, orgId);
     return res;
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Error" }, { status: 403 });
