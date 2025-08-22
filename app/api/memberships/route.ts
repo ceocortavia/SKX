@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth-context";
+export const runtime = "nodejs";
 import { withGUC } from "@/lib/withGUC";
 import { pool } from "@/lib/db";
 
 // List brukerens memberships på tvers av orgs (brukes av org-switcher)
-export async function GET() {
-  const { clerkUserId, email } = await getAuthContext();
+export async function GET(req: Request) {
+  const { clerkUserId, email } = await getAuthContext(req);
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = await pool.connect();

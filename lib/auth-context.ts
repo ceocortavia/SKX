@@ -1,12 +1,14 @@
-import { headers } from "next/headers";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
+import { headers as nextHeaders } from "next/headers";
 
-export async function getAuthContext(): Promise<{
-  clerkUserId: string | null;
-  email: string | null;
-  mfaVerified: boolean;
-}> {
-  const h = headers();
+type AuthCtx = {
+  clerkUserId?: string;
+  email?: string;
+  mfaVerified?: boolean;
+};
+
+export async function getAuthContext(req?: Request): Promise<AuthCtx> {
+  const h: Headers = (req?.headers as Headers | undefined) ?? nextHeaders();
   const testBypass = process.env.TEST_AUTH_BYPASS === "1";
 
   if (testBypass) {
@@ -17,12 +19,10 @@ export async function getAuthContext(): Promise<{
     }
   }
 
-  const { userId: clerkUserId } = auth();
-  if (!clerkUserId) return { clerkUserId: null, email: null, mfaVerified: false };
-
-  const user = await currentUser();
-  const email = user?.emailAddresses?.[0]?.emailAddress ?? null;
-  return { clerkUserId, email, mfaVerified: false };
+  const { userId, sessionClaims } = await auth();
+  if (!userId) return {};
+  const email = (sessionClaims as Record<string, unknown> | null)?.email as string | undefined;
+  return { clerkUserId: userId, email, mfaVerified: false };
 }
 
 
