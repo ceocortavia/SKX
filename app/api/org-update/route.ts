@@ -6,8 +6,10 @@ import { pool } from "@/lib/db";
 import { assertMFA } from "@/lib/assertMFA";
 
 // Oppdater ufarlig felt: homepage_domain (RLS blokkerer BRREG-felt)
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
-  const { userId: clerkUserId } = auth();
+  const { userId: clerkUserId } = await auth();
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));

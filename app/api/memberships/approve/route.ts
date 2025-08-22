@@ -7,8 +7,10 @@ import { assertMFA } from "@/lib/assertMFA";
 import { getOrgHint, setOrgCookie } from "@/lib/org-hint";
 import { auditLog } from "@/lib/audit";
 
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
-  const { userId: clerkUserId } = auth();
+  const { userId: clerkUserId } = await auth();
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { userId: targetUserId } = (await req.json().catch(() => ({}))) as { userId?: string };
