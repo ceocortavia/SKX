@@ -50,4 +50,25 @@ jobs:
           name: rls_199_log
           path: rls_199.log
 
+  e2e:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TEST_AUTH_BYPASS: "1"
+      NODE_ENV: "test"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install deps
+        run: npm ci
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+      - name: Run E2E smoke
+        run: npm run test:e2e
+
 
