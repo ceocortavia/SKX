@@ -10,9 +10,10 @@ export default function OrgSwitcher() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/memberships")
-      .then((r) => r.json())
+    fetch("/api/memberships", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { memberships: [] }))
       .then((j) => setItems(j.memberships ?? []))
+      .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, []);
 
