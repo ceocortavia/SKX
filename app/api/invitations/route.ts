@@ -69,45 +69,48 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  const { userId: clerkUserId } = await auth();
-  if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const client = await pool.connect();
   try {
-    const u = await client.query(`select id, primary_email from public.users where clerk_user_id=$1`, [clerkUserId]);
-    if (!u.rows[0]) return NextResponse.json({ error: "User not provisioned" }, { status: 403 });
-    const userId: string = u.rows[0].id;
-    const email: string = u.rows[0].primary_email;
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { hintedOrgId } = getOrgHint(req);
-    const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId, hintedOrgId });
+    const client = await pool.connect();
+    try {
+      const u = await client.query(`select id, primary_email from public.users where clerk_user_id=$1`, [clerkUserId]);
+      if (!u.rows[0]) return NextResponse.json({ error: "User not provisioned" }, { status: 403 });
+      const userId: string = u.rows[0].id;
+      const email: string = u.rows[0].primary_email;
 
-    const data = await withGUC(
-      { userId, clerkUserId, clerkUserEmail: email, orgId, orgRole, orgStatus, mfa: "off" },
-      async (tx) => {
-        const res = await tx.query(
-          `select id, organization_id, email, requested_role, status, expires_at
-           from public.invitations
-           where ($1::uuid is not null and organization_id=$1)
-              or (email=$2)
-           order by created_at desc nulls last
-           limit 100`,
-          [orgId ?? null, email]
-        );
-        return res.rows;
+      const { hintedOrgId } = getOrgHint(req);
+      const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId, hintedOrgId });
+
+      const data = await withGUC(
+        { userId, clerkUserId, clerkUserEmail: email, orgId, orgRole, orgStatus, mfa: "off" },
+        async (tx) => {
+          const res = await tx.query(
+            `select id, organization_id, email, requested_role, status, expires_at
+             from public.invitations
+             where ($1::uuid is not null and organization_id=$1)
+                or (email=$2)
+             order by created_at desc nulls last
+             limit 100`,
+            [orgId ?? null, email]
+          );
+          return res.rows;
+        }
+      );
+
+      const resp = NextResponse.json({ invitations: data });
+      if (orgId) {
+        resp.headers.set("x-org-id", orgId);
+        setOrgCookie(resp, orgId);
       }
-    );
-
-    const resp = NextResponse.json({ invitations: data });
-    if (orgId) {
-      resp.headers.set("x-org-id", orgId);
-      setOrgCookie(resp, orgId);
+      return resp;
+    } finally {
+      client.release();
     }
-    return resp;
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? "Error" }, { status: 403 });
-  } finally {
-    client.release();
+  } catch (err: any) {
+    console.error("GET /api/invitations failed:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
