@@ -8,17 +8,18 @@
     "test:e2e": "playwright test --reporter=line"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.31.3",
+    "@clerk/nextjs": "^6.31.4",
     "@supabase/supabase-js": "^2.48.1",
-    "pg": "^8.11.5",
+    "dotenv": "^17.2.1",
     "next": "^15.5.0",
+    "pg": "^8.11.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.47.2",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.7",
-    "@playwright/test": "^1.47.2",
     "typescript": "^5.6.3"
   }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
@@ -8,7 +8,7 @@ import { getOrgHint, setOrgCookie } from "@/lib/org-hint";
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
-  const { userId: clerkUserId } = await auth();
+  const { clerkUserId, email } = await getAuthContext(req);
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = await pool.connect();
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not provisioned" }, { status: 403 });
     }
     const userId: string = ures.rows[0].id;
-    const email: string = ures.rows[0].primary_email;
+    // email kommer nå fra getAuthContext(req)
 
     const { hintedOrgId } = getOrgHint(req);
     const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId, hintedOrgId });

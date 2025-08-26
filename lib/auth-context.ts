@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-import { headers as nextHeaders } from "next/headers";
 
 type AuthCtx = {
   clerkUserId?: string;
@@ -7,8 +6,8 @@ type AuthCtx = {
   mfaVerified?: boolean;
 };
 
-export async function getAuthContext(req?: Request): Promise<AuthCtx> {
-  const h = req?.headers ?? nextHeaders();
+export async function getAuthContext(req: Request): Promise<AuthCtx> {
+  const h = req.headers;
   const testBypass = process.env.TEST_AUTH_BYPASS === "1";
 
   if (testBypass) {
@@ -19,10 +18,15 @@ export async function getAuthContext(req?: Request): Promise<AuthCtx> {
     }
   }
 
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return {};
-  const email = (sessionClaims as Record<string, unknown> | null)?.email as string | undefined;
-  return { clerkUserId: userId, email, mfaVerified: false };
+  try {
+    const { userId, sessionClaims } = await auth();
+    if (!userId) return {};
+    const email = (sessionClaims as Record<string, unknown> | null)?.email as string | undefined;
+    return { clerkUserId: userId, email, mfaVerified: false };
+  } catch (e) {
+    // Clerk auth() can throw if no valid session
+    return {};
+  }
 }
 
 

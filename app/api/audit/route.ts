@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { clerkUserId } = await getAuthContext(req);
     if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const client = await pool.connect();

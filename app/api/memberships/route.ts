@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/auth-context";
-export const runtime = "nodejs";
 import { withGUC } from "@/lib/withGUC";
 import { pool } from "@/lib/db";
+
+export const runtime = "nodejs";
 
 // List brukerens memberships på tvers av orgs (brukes av org-switcher)
 export async function GET(req: Request) {
@@ -11,6 +12,12 @@ export async function GET(req: Request) {
 
   const client = await pool.connect();
   try {
+    // Debugging: sjekk miljø og runtime
+    console.log("DBG members GET", {
+      hasDbUrl: !!process.env.DATABASE_URL,
+      urlHost: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0], // redakt host
+      runtime: (global as any).EdgeRuntime ? "edge" : "node",
+    });
     const u = await client.query(`select id from public.users where clerk_user_id=$1`, [clerkUserId]);
     if (!u.rows[0]) return NextResponse.json({ error: "User not provisioned" }, { status: 403 });
     const userId: string = u.rows[0].id;

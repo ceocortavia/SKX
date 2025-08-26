@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
@@ -9,15 +9,15 @@ import { auditLog } from "@/lib/audit";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { userId: clerkUserId } = await auth();
+  const { clerkUserId, email } = await getAuthContext(req);
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = await pool.connect();
   try {
-    const u = await client.query(`select id, primary_email from public.users where clerk_user_id=$1`, [clerkUserId]);
+    const u = await client.query(`select id from public.users where clerk_user_id=$1`, [clerkUserId]);
     if (!u.rows[0]) return NextResponse.json({ error: "User not provisioned" }, { status: 403 });
     const userId: string = u.rows[0].id;
-    const email: string = u.rows[0].primary_email;
+    // email kommer nå fra getAuthContext(req)
 
     const { hintedOrgId } = getOrgHint(req);
     const { orgId, orgRole, orgStatus } = await resolveOrgContext(client, { userId, hintedOrgId });

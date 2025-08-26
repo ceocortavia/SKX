@@ -6,22 +6,22 @@ test('landing renders', async ({ page }) => {
 });
 
 test('dashboard renders with bypass', async ({ page }) => {
-  await page.goto('/dashboard', {
-    headers: {
-      'x-test-clerk-user-id': 'user_a',
-      'x-test-clerk-email': 'a@example.com',
-    } as any,
+  // Set test headers before navigation
+  await page.setExtraHTTPHeaders({
+    'x-test-clerk-user-id': 'user_a',
+    'x-test-clerk-email': 'a@example.com',
   });
+  await page.goto('/dashboard');
   await expect(page.getByText('Dashboard')).toBeVisible();
 });
 
 test('admin renders tabs (data may be empty)', async ({ page }) => {
-  await page.goto('/admin', {
-    headers: {
-      'x-test-clerk-user-id': 'user_a',
-      'x-test-clerk-email': 'a@example.com',
-    } as any,
+  // Set test headers before navigation
+  await page.setExtraHTTPHeaders({
+    'x-test-clerk-user-id': 'user_a',
+    'x-test-clerk-email': 'a@example.com',
   });
+  await page.goto('/admin');
   await expect(page.getByText('Domains')).toBeVisible();
   await expect(page.getByText('Invitations')).toBeVisible();
   await expect(page.getByText('Audit')).toBeVisible();

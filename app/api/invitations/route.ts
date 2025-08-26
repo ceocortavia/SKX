@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { resolveOrgContext } from "@/lib/org-context";
 import { pool } from "@/lib/db";
@@ -10,7 +10,7 @@ import { auditLog } from "@/lib/audit";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { userId: clerkUserId } = await auth();
+  const { clerkUserId } = await getAuthContext(req);
   if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as { email?: string; requested_role?: "member" | "admin"; expires_days?: number };
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { clerkUserId } = await getAuthContext(req);
     if (!clerkUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const client = await pool.connect();

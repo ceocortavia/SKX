@@ -4,10 +4,33 @@ RLS satt opp med Clerk + Supabase/Neon og verifisert via `db/tests/199_final_ver
 
 Lokalt:
 
+## Oppsett
+
+1. **Kopier miljøvariabler:**
+   ```bash
+   cp .env.example .env.local
+   ```
+
+2. **Oppdater `.env.local` med dine faktiske verdier:**
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - fra Clerk Dashboard
+   - `CLERK_SECRET_KEY` - fra Clerk Dashboard  
+   - `DATABASE_URL` - Neon pooled URL (må inneholde `-pooler` og `?sslmode=require`)
+   - `DATABASE_URL_UNPOOLED` - Neon unpooled URL
+
+3. **Installer avhengigheter:**
+   ```bash
+   npm install
+   npx playwright install
+   ```
+
+## Kommandoer
+
 - Migrasjoner:
   make migrate
 - Verifisering:
   make verify
+- E2E tester:
+  npm run test:e2e
 
 ## CI / Pipeline
 
