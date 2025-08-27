@@ -8,6 +8,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    environment: neon
     env:
       DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
     steps:
@@ -19,6 +20,9 @@ jobs:
 
       - name: Show psql version
         run: psql --version
+
+      - name: Sanity connect to Neon
+        run: psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -c "select current_user, current_database();"
 
       - name: Run migrations (idempotent)
         run: |
