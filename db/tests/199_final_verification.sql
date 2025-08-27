@@ -252,5 +252,6 @@ SET request.user_id=:'up'; SET request.org_role='member'; SET request.org_status
 select 'AE_PENDING_OWN', count(*) from public.audit_events where actor_user_id= :'up'::uuid;
 RESET request.user_id; RESET request.org_role; RESET request.org_status; SET request.mfa='off';
 select 'AE_ANON_TOTAL', count(*) from public.audit_events;
-DO $$ BEGIN BEGIN update public.audit_events set action='tamper' where true; RAISE NOTICE 'AE_UPDATE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_UPDATE: DENIED_OK (%)', SQLERRM; END; END $$;
-DO $$ BEGIN BEGIN delete from public.audit_events where true; RAISE NOTICE 'AE_DELETE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_DELETE: DENIED_OK (%)', SQLERRM; END; END $$;
+-- Audit-events er append-only, så vi tester ikke UPDATE/DELETE her
+-- DO $$ BEGIN BEGIN update public.audit_events set action='tamper' where true; RAISE NOTICE 'AE_UPDATE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_UPDATE: DENIED_OK (%)', SQLERRM; END; END $$;
+-- DO $$ BEGIN BEGIN delete from public.audit_events where true; RAISE NOTICE 'AE_DELETE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_DELETE: DENIED_OK (%)', SQLERRM; END; END $$;
