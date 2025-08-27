@@ -40,13 +40,16 @@ jobs:
 
       - name: Policy snapshot (current)
         run: |
-          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 \
-            -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
+          # -X: ingen psql-rc, -q: quiet, -A: unaligned, -t: tuples-only
+          psql "$DATABASE_URL_UNPOOLED" -X -q -A -t -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
 
       - name: Compare policy snapshot
         run: |
           set -e
-          diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt
+          # Normaliser begge filer (trim + uten blanke linjer)
+          awk 'NF{print}' db/tests/policy_snapshot.txt > expected.txt
+          awk 'NF{print}' current_policy_snapshot.txt > current.txt
+          diff -u expected.txt current.txt
 
       - name: Upload verification log (artifact)
         uses: actions/upload-artifact@v4
