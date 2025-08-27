@@ -83,7 +83,8 @@ where organization_id = :'org1'::uuid and role='owner' and status='approved';
 
 -- Clean invitations/audit
 DELETE FROM public.invitations  WHERE organization_id=:'org1'::uuid;
-DELETE FROM public.audit_events WHERE actor_org_id   =:'org1'::uuid;
+-- Audit-events er append-only, så vi nullstiller ikke her
+-- DELETE FROM public.audit_events WHERE actor_org_id   =:'org1'::uuid;
 
 -- Pre-seed audit events before RLS role
 INSERT INTO public.audit_events (id,actor_user_id,actor_org_id,action,target_table,target_pk,metadata,created_at)
