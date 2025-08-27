@@ -95,6 +95,11 @@ VALUES (gen_random_uuid(),:'ua'::uuid, :'org1'::uuid,'org.update_homepage','orga
 -- Switch to RLS role
 SET ROLE app_client;
 
+-- 🔒 Set RLS session context for the "actor" we want to test as
+SET request.user_id = :'ua'::uuid;   -- seeded admin/owner user id
+SET request.org_id  = :'org1'::uuid; -- seeded org id
+SET request.mfa     = true;          -- policies require MFA
+
 -- USERS (GUC-only in queries/DO)
 SET request.clerk_user_id='user_a';
 SET request.user_id=:'ua';
