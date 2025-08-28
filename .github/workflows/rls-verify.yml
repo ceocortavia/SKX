@@ -66,8 +66,16 @@ jobs:
           # Diff mot fasit i repo. Feiler jobben hvis det er avvik.
           diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt
 
-      - name: Upload verification log (artifact)
+      - name: Upload verification log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rls_199.log
           path: rls_199.log
+
+      - name: Upload current policy snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current_policy_snapshot.txt
+          path: current_policy_snapshot.txt
