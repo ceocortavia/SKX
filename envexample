@@ -1,0 +1,4 @@
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_aG9seS1idXJyby0xNS5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_rzphxs8wZVFQEdPn4zKJfUpmHzwHkLUccaiJLcUGpk
+DATABASE_URL=postgresql://...pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://...eu-central-1.aws.neon.tech/neondb?sslmode=require
