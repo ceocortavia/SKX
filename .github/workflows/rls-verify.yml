@@ -1,15 +1,26 @@
 name: RLS Verification
 
 on:
+<<<<<<< HEAD
   pull_request:
   push:
     branches: [ main ]
+=======
+  workflow_dispatch:   # <- kjør kun manuelt fra Actions-fanen
+>>>>>>> origin/main
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
     env:
       DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+=======
+    environment: neon
+    env:
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+
+>>>>>>> origin/main
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -20,6 +31,12 @@ jobs:
       - name: Show psql version
         run: psql --version
 
+<<<<<<< HEAD
+=======
+      - name: Sanity connect to Neon
+        run: psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -c "select current_user, current_database();"
+
+>>>>>>> origin/main
       - name: Run migrations (idempotent)
         run: |
           set -euo pipefail
@@ -31,22 +48,35 @@ jobs:
       - name: Run final RLS verification (199)
         run: |
           set -euo pipefail
+<<<<<<< HEAD
           psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -a -P pager=off \
+=======
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -v "ON_ERROR_STOP=1" -v "pager=off" \
+>>>>>>> origin/main
             -f db/tests/199_final_verification.sql | tee rls_199.log
 
       - name: Policy snapshot (current)
         run: |
+<<<<<<< HEAD
           psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 \
             -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
+=======
+          psql "$DATABASE_URL_UNPOOLED" -Atq -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
+>>>>>>> origin/main
 
       - name: Compare policy snapshot
         run: |
           set -e
+<<<<<<< HEAD
           diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt
+=======
+          diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt || (echo "Snapshot diff"; exit 1)
+>>>>>>> origin/main
 
       - name: Upload verification log (artifact)
         uses: actions/upload-artifact@v4
         with:
+<<<<<<< HEAD
           name: rls_199_log
           path: rls_199.log
 
@@ -72,3 +102,7 @@ jobs:
         run: npm run test:e2e
 
 
+=======
+          name: rls_199.log
+          path: rls_199.log
+>>>>>>> origin/main

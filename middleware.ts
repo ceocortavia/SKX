@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
@@ -14,6 +15,19 @@ const isPublicRoute = createRouteMatcher(
 );
 
 // ⬇️ Bruk redirectToSignIn i stedet for protect
+=======
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+]);
+
+>>>>>>> origin/main
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
   const { userId, redirectToSignIn } = await auth();
@@ -22,9 +36,13 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
+<<<<<<< HEAD
     // Skip Next internals/statics
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     // Kjør alltid på API
+=======
+    "/((?!_next|.*\\..*).*)",
+>>>>>>> origin/main
     "/(api|trpc)(.*)",
   ],
 };
