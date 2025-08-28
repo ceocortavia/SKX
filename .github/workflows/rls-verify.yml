@@ -11,50 +11,63 @@ jobs:
     environment: neon
     env:
       DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
       - name: Install psql client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Show psql version
         run: psql --version
 
       - name: Sanity connect to Neon
-        run: psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -c "select current_user, current_database();"
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -X -v ON_ERROR_STOP=1 \
+            -c "select current_user as usr, current_database() as db;"
 
       - name: Run migrations (idempotent)
+        shell: bash
         run: |
           set -euo pipefail
           for f in $(ls -1 db/migrations/*.sql | sort); do
             echo "==> Running $f"
-            psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -f "$f"
+            psql "$DATABASE_URL_UNPOOLED" -X -v ON_ERROR_STOP=1 -f "$f"
           done
 
       - name: Run final RLS verification (199)
+        shell: bash
         run: |
           set -euo pipefail
-          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -a -P pager=off \
+          # -X: ignore .psqlrc, -q: quiet, -v ON_ERROR_STOP=1: fail fast, --pset pager=off: no pager
+          psql "$DATABASE_URL_UNPOOLED" -X -q -v ON_ERROR_STOP=1 --pset pager=off \
             -f db/tests/199_final_verification.sql | tee rls_199.log
 
       - name: Policy snapshot (current)
+        shell: bash
         run: |
-          # -X: ingen psql-rc, -q: quiet, -A: unaligned, -t: tuples-only
-          psql "$DATABASE_URL_UNPOOLED" -X -q -A -t -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
+          # Produser snapshot uten støy og blanklinjer
+          psql "$DATABASE_URL_UNPOOLED" -X -q -A -t --pset pager=off \
+            -f db/tests/policy_snapshot.sql \
+            | grep -v '^Output format is unaligned\.$' \
+            | grep -v '^[[:space:]]*$' \
+            > current_policy_snapshot.txt
 
       - name: Compare policy snapshot
+        shell: bash
         run: |
-          set -e
-          # Normaliser begge filer (trim + uten blanke linjer)
-          awk 'NF{print}' db/tests/policy_snapshot.txt > expected.txt
-          awk 'NF{print}' current_policy_snapshot.txt > current.txt
-          diff -u expected.txt current.txt
+          set -euo pipefail
+          # Rens forventet snapshot for samme støy/blanklinjer før diff
+          grep -v '^Output format is unaligned\.$' db/tests/policy_snapshot.txt \
+            | grep -v '^[[:space:]]*$' \
+            > expected_policy_snapshot.txt
+          diff -u expected_policy_snapshot.txt current_policy_snapshot.txt
 
       - name: Upload verification log (artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: rls_199_log
+          name: rls_199.log
           path: rls_199.log
-
-
