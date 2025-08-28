@@ -1,0 +1,55 @@
+name: RLS Verification
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    environment: neon
+    env:
+      DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Show psql version
+        run: psql --version
+
+      - name: Sanity connect to Neon
+        run: psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -Atc "select current_user, current_database();"
+
+      - name: Run migrations (idempotent)
+        run: |
+          set -euo pipefail
+          for f in $(ls -1 db/migrations/*.sql | sort); do
+            echo "==> Running $f"
+            psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Run final RLS verification (199)
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -v "pager=off" \
+            -f db/tests/199_final_verification.sql | tee rls_199.log
+
+      - name: Policy snapshot (current)
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -Atq \
+            -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
+
+      - name: Compare policy snapshot
+        run: |
+          set -e
+          diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt
+
+      - name: Upload verification log (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rls_199.log
+          path: rls_199.log
