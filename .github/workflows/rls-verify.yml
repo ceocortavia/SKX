@@ -1,7 +1,10 @@
 name: RLS Verification
 
 on:
-  workflow_dispatch:   # <- kjør kun manuelt fra Actions-fanen
+  workflow_dispatch:   # tillater manuell kjøring
+  pull_request:        # kjør på PR
+  push:                # kjør på pushes til main
+    branches: [ main ]
 
 jobs:
   verify:
@@ -15,13 +18,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install psql client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
       - name: Show psql version
         run: psql --version
 
       - name: Sanity connect to Neon
-        run: psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -c "select current_user, current_database();"
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -Atc \
+          "select current_user, current_database();"
 
       - name: Run migrations (idempotent)
         run: |
@@ -33,21 +40,24 @@ jobs:
 
       - name: Run final RLS verification (199)
         run: |
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 \
+          -a -P pager=off -f db/tests/199_final_verification.sql \
+          | tee /tmp/rls_199.log
+
+      - name: Produce policy snapshot (current)
+        run: |
+          psql "$DATABASE_URL_UNPOOLED" -Atq \
+          -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
+
+      - name: Compare snapshot with baseline
+        run: |
           set -euo pipefail
-          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -v "ON_ERROR_STOP=1" -v "pager=off" \
-            -f db/tests/199_final_verification.sql | tee rls_199.log
+          diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt
 
-      - name: Policy snapshot (current)
-        run: |
-          psql "$DATABASE_URL_UNPOOLED" -Atq -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
-
-      - name: Compare policy snapshot
-        run: |
-          set -e
-          diff -u db/tests/policy_snapshot.txt current_policy_snapshot.txt || (echo "Snapshot diff"; exit 1)
-
-      - name: Upload verification log (artifact)
+      - name: Upload artifacts (logs & snapshot)
         uses: actions/upload-artifact@v4
         with:
-          name: rls_199.log
-          path: rls_199.log
+          name: rls-artifacts
+          path: |
+            /tmp/rls_199.log
+            current_policy_snapshot.txt
