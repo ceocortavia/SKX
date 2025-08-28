@@ -83,12 +83,8 @@ where organization_id = :'org1'::uuid and role='owner' and status='approved';
 
 -- Clean invitations/audit
 DELETE FROM public.invitations  WHERE organization_id=:'org1'::uuid;
-<<<<<<< HEAD
-DELETE FROM public.audit_events WHERE actor_org_id   =:'org1'::uuid;
-=======
 -- Audit-events er append-only, så vi nullstiller ikke her
 -- DELETE FROM public.audit_events WHERE actor_org_id   =:'org1'::uuid;
->>>>>>> origin/main
 
 -- Pre-seed audit events before RLS role
 INSERT INTO public.audit_events (id,actor_user_id,actor_org_id,action,target_table,target_pk,metadata,created_at)
@@ -99,14 +95,11 @@ VALUES (gen_random_uuid(),:'ua'::uuid, :'org1'::uuid,'org.update_homepage','orga
 -- Switch to RLS role
 SET ROLE app_client;
 
-<<<<<<< HEAD
-=======
 -- 🔒 Set RLS session context for the "actor" we want to test as
 SET request.user_id = :'ua';         -- seeded admin/owner user id
 SET request.org_id  = :'org1';       -- seeded org id
 SET request.mfa     = 'on';          -- policies require MFA
 
->>>>>>> origin/main
 -- USERS (GUC-only in queries/DO)
 SET request.clerk_user_id='user_a';
 SET request.user_id=:'ua';
@@ -264,11 +257,6 @@ SET request.user_id=:'up'; SET request.org_role='member'; SET request.org_status
 select 'AE_PENDING_OWN', count(*) from public.audit_events where actor_user_id= :'up'::uuid;
 RESET request.user_id; RESET request.org_role; RESET request.org_status; SET request.mfa='off';
 select 'AE_ANON_TOTAL', count(*) from public.audit_events;
-<<<<<<< HEAD
-DO $$ BEGIN BEGIN update public.audit_events set action='tamper' where true; RAISE NOTICE 'AE_UPDATE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_UPDATE: DENIED_OK (%)', SQLERRM; END; END $$;
-DO $$ BEGIN BEGIN delete from public.audit_events where true; RAISE NOTICE 'AE_DELETE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_DELETE: DENIED_OK (%)', SQLERRM; END; END $$;
-=======
 -- Audit-events er append-only, så vi tester ikke UPDATE/DELETE her
 -- DO $$ BEGIN BEGIN update public.audit_events set action='tamper' where true; RAISE NOTICE 'AE_UPDATE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_UPDATE: DENIED_OK (%)', SQLERRM; END; END $$;
 -- DO $$ BEGIN BEGIN delete from public.audit_events where true; RAISE NOTICE 'AE_DELETE: UNEXPECTED'; EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'AE_DELETE: DENIED_OK (%)', SQLERRM; END; END $$;
->>>>>>> origin/main
