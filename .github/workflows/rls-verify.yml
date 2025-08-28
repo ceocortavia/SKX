@@ -44,19 +44,11 @@ jobs:
           # Kjør testen og fang både stdout og stderr i loggen (NOTICE går ofte på stderr)
           psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -f db/tests/199_final_verification.sql 2>&1 | tee rls_199.log
 
-      # ----- Inline snapshot: henter pg_policies uten egen .sql-fil -----
       - name: Policy snapshot (current)
         run: |
           set -euo pipefail
           # -A = unaligned, -t = tuples only, -q = quiet (ingen "Output format is unaligned.")
-          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -Atq <<'SQL' > current_policy_snapshot.txt
-          SELECT
-            schemaname || '|' || tablename || '|' || policyname || '|' || cmd || '|' ||
-            COALESCE(qual, '') || '|' || COALESCE(with_check, '')
-          FROM pg_policies
-          WHERE schemaname IN ('public','app')
-          ORDER BY schemaname, tablename, policyname, cmd;
-          SQL
+          psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -Atq -f db/tests/198_policy_snapshot.sql > current_policy_snapshot.txt
           # Vis noen første linjer i loggen for debug
           head -n 20 current_policy_snapshot.txt || true
 
