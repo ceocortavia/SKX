@@ -4,16 +4,24 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"No tests specified\" && exit 0",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "type-check": "tsc --noEmit",
+    "db:seed": "psql \"$DATABASE_URL_UNPOOLED\" -v ON_ERROR_STOP=1 -f db/tests/local_seed_min.sql"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.31.3",
-    "@supabase/supabase-js": "^2.48.1",
+    "@types/pg": "^8.15.5",
     "next": "^15.5.0",
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.7",
     "typescript": "^5.6.3"
