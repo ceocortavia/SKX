@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { createNeonClient } from "../../../lib/neon/client";
 
 export default async function Dashboard() {
   const { userId } = await auth();
@@ -12,15 +12,16 @@ export default async function Dashboard() {
     <main style={{ padding: 24 }}>
       <h2>Dashboard</h2>
       <p>Kun innloggede brukere ser dette. Din userId: {userId}</p>
-      {/* Eksempel: veldig enkel ping mot Supabase for å verifisere token-flyt */}
+      {/* Eksempel: veldig enkel ping mot Neon database for å verifisere tilkobling */}
       {/* Denne kan byttes ut med faktisk data senere */}
       {await (async () => {
         try {
-          const supabase = await createSupabaseServerClient();
-          const { error } = await supabase.from("pg_temp").select("1").limit(1);
-          return <pre>{error ? `Supabase ping error: ${error.message}` : "Supabase ping OK"}</pre>;
+          const client = createNeonClient();
+          const result = await client.query('SELECT NOW() as current_time');
+          await client.end();
+          return <pre>Neon database ping OK: {result.rows[0]?.current_time}</pre>;
         } catch (e: unknown) {
-          return <pre>{`Supabase ping skipped (${e instanceof Error ? e.message : "missing config"})`}</pre>;
+          return <pre>Neon database ping failed: {e instanceof Error ? e.message : "missing config"}</pre>;
         }
       })()}
     </main>
