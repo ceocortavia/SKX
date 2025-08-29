@@ -9,11 +9,10 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NODE_ENV: test
-      # TEST_AUTH_BYPASS kan brukes i test, men skal ikke settes i prod
       TEST_AUTH_BYPASS: "1"
+      # Clerk React trenger kun denne – IKKE hemmelig
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y29uY2lzZS1tb3NxdWl0by00MS5jbGVyay5hY2NvdW50cy5kZXYk
     steps:
       - uses: actions/checkout@v4
 
@@ -30,7 +29,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run tests
-        run: npx playwright test
+        run: npm run test:e2e
 
       - name: Upload report (on failure)
         if: failure()
