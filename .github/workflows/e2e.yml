@@ -8,6 +8,12 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NODE_ENV: test
+      # TEST_AUTH_BYPASS kan brukes i test, men skal ikke settes i prod
+      TEST_AUTH_BYPASS: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -25,9 +31,6 @@ jobs:
 
       - name: Run tests
         run: npx playwright test
-        env:
-          # Ikke bypass i CI – vi forventer beskyttelse/redirect i negative tester
-          NODE_ENV: test
 
       - name: Upload report (on failure)
         if: failure()
