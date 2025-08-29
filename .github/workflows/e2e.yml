@@ -1,4 +1,16 @@
+# .github/workflows/e2e.yml
 name: E2E (Playwright)
+
+on:
+  workflow_dispatch:  # ← behold bare denne
+  # pull_request:     # ← fjern/kommenter bort
+  # push:             # ← fjern/kommenter bort
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "E2E disabled for PRs; run manually via workflow_dispatch"
 
 on:
   pull_request:
