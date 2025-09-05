@@ -1,0 +1,105 @@
+name: E2E (Playwright)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrate:
+    name: DB migrate (once)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run db:migrate --if-present
+
+  e2e:
+    name: ${{ matrix.browser }} shard ${{ matrix.shard }}/2
+    needs: migrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit, firefox]
+        shard: [1, 2]
+    env:
+      NODE_ENV: test
+      CI: "true"
+      PORT: 3000
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      SHARD_TOTAL: 2
+      TEST_RUN_ID: ${{ github.run_id }}-${{ matrix.browser }}-${{ matrix.shard }}
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
+      # Feature flags / test toggles
+      TEST_AUTH_BYPASS: '1'
+      NEXT_PUBLIC_TEST_BYPASS: '1'
+      NEXT_PUBLIC_DEV_BYPASS_USER_ID: user_a
+      NEXT_PUBLIC_DEV_BYPASS_EMAIL: a@example.com
+      NEXT_PUBLIC_TEST_ORG_ID: ${{ secrets.NEXT_PUBLIC_TEST_ORG_ID }}
+      TEST_SEED_SECRET: ${{ secrets.TEST_SEED_SECRET }}
+      ADMIN_BULK_REVOCATION_ENABLED: '1'
+      ADMIN_BULK_MEMBERS_ENABLED: '1'
+      ADMIN_BULK_ROLE_ENABLED: '1'
+      NEXT_PUBLIC_EXPORTS_ENABLED: '1'
+
+      # Clerk
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Build app
+        run: npm run build
+
+      - name: Start app (background)
+        run: |
+          nohup npm start >/dev/null 2>&1 &
+          npx wait-on --timeout 60000 $PLAYWRIGHT_BASE_URL
+
+      - name: Run Playwright
+        run: |
+          npx playwright test \
+            --project=${{ matrix.browser }} \
+            --shard=${{ matrix.shard }}/${{ env.SHARD_TOTAL }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}-shard${{ matrix.shard }}
+          path: playwright-report
+          retention-days: 7
+
+

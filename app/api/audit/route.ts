@@ -38,11 +38,23 @@ export async function GET(req: Request) {
         }, { status: 403 });
       }
 
-      // Parse pagination parameters
+      // Parse query parameters
       const url = new URL(req.url);
-      const page = parseInt(url.searchParams.get('page') || '1');
-      const pageSize = parseInt(url.searchParams.get('pageSize') || '20');
-      const offset = (page - 1) * pageSize;
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '50'), 1), 200);
+      const cursor = url.searchParams.get('cursor');
+      const action = url.searchParams.get('action');
+      const fromIso = url.searchParams.get('from');
+      const toIso = url.searchParams.get('to');
+
+      // Parse cursor if provided
+      let cursorTs: string | null = null;
+      let cursorId: string | null = null;
+      if (cursor) {
+        const parts = cursor.split('_');
+        if (parts.length === 2) {
+          [cursorTs, cursorId] = parts;
+        }
+      }
 
       const result = await withGUC(client, {
         "request.clerk_user_id": clerkUserId,
@@ -52,43 +64,60 @@ export async function GET(req: Request) {
         "request.org_status": org?.status ?? "",
         "request.mfa": "on", // MFA verified for this operation
       }, async () => {
-        // This SELECT is evaluated under RLS using the GUCs above
+        // Build query with filters
+        const args: any[] = [];
+        let whereClause = `actor_org_id = nullif(current_setting('request.org_id', true), '')::uuid`;
+        
+        // Add cursor condition
+        if (cursorTs && cursorId) {
+          whereClause += ` AND (created_at, id) < ($${args.length + 1}, $${args.length + 2})`;
+          args.push(cursorTs, cursorId);
+        }
+        
+        // Add action filter
+        if (action) {
+          whereClause += ` AND action ILIKE $${args.length + 1}`;
+          args.push(action.replace(/%/g, '') + '%');
+        }
+        
+        // Add date range filters
+        if (fromIso) {
+          whereClause += ` AND created_at >= $${args.length + 1}`;
+          args.push(fromIso);
+        }
+        
+        if (toIso) {
+          whereClause += ` AND created_at < $${args.length + 1}`;
+          args.push(toIso);
+        }
+
+        // Execute query with limit + 1 to check if there are more pages
         const res = await client.query(`
-          SELECT created_at, actor_user_id, action, target_table, target_pk, metadata
+          SELECT id, created_at, actor_user_id, action, target_table, target_pk, metadata
           FROM public.audit_events
-          WHERE actor_org_id = nullif(current_setting('request.org_id', true), '')::uuid
-          ORDER BY created_at DESC
-          LIMIT $1 OFFSET $2
-        `, [pageSize, offset]);
+          WHERE ${whereClause}
+          ORDER BY created_at DESC, id DESC
+          LIMIT $${args.length + 1}
+        `, [...args, limit + 1]);
+
         return res.rows;
       });
 
-      // Get total count for pagination
-      const countResult = await withGUC(client, {
-        "request.clerk_user_id": clerkUserId,
-        "request.user_id": userId ?? "",
-        "request.org_id": org?.id ?? "",
-        "request.org_role": org?.role ?? "",
-        "request.org_status": org?.status ?? "",
-        "request.mfa": "on",
-      }, async () => {
-        const res = await client.query(`
-          SELECT COUNT(*) as total
-          FROM public.audit_events
-          WHERE actor_org_id = nullif(current_setting('request.org_id', true), '')::uuid
-        `);
-        return res.rows[0].total;
-      });
-
-      const total = parseInt(countResult);
-      const nextOffset = offset + pageSize < total ? offset + pageSize : null;
+      // Check if there are more pages
+      const hasMore = result.length > limit;
+      const page = hasMore ? result.slice(0, limit) : result;
+      
+      // Generate next cursor
+      let nextCursor: string | null = null;
+      if (hasMore && page.length > 0) {
+        const lastRow = page[page.length - 1];
+        nextCursor = `${lastRow.created_at.toISOString()}_${lastRow.id}`;
+      }
 
       return NextResponse.json({ 
-        rows: result,
-        page,
-        pageSize,
-        total,
-        nextOffset,
+        items: page,
+        nextCursor,
+        hasMore,
         org
       });
       
