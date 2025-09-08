@@ -1,0 +1,39 @@
+:root {
+  /* Brand */
+  --color-primary-50:  #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1; /* indigo-500 */
+  --color-primary-600: #4f46e5; /* CTA */
+  --color-primary-700: #4338ca;
+
+  /* Accent (gradient) */
+  --color-accent-a: #8b5cf6; /* violet-500 */
+  --color-accent-b: #06b6d4; /* cyan-500 */
+  --color-accent-c: #a21caf; /* fuchsia-700 */
+
+  /* Neutrals */
+  --color-text-strong: #0f172a;  /* slate-900 */
+  --color-text:        #334155;  /* slate-700 */
+  --color-text-dim:    #64748b;  /* slate-500 */
+  --color-border:      #e2e8f0;  /* slate-200 */
+  --color-surface:     #ffffff;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-card: 0 8px 30px rgba(0,0,0,0.06);
+  --shadow-card-hover: 0 12px 40px rgba(0,0,0,0.10);
+}
+
+.token-surface { background: var(--color-surface); }
+.token-border  { border-color: var(--color-border); }
+.token-shadow  { box-shadow: var(--shadow-card); }
+
+
