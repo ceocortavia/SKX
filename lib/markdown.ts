@@ -10,17 +10,26 @@ import matter from 'gray-matter';
 marked.setOptions({
   gfm: true,
   breaks: false,
-  smartypants: true,
-  headerIds: true,
-  highlight(code, lang) {
-    try {
-      if (lang && hljs.getLanguage(lang)) {
-        return hljs.highlight(code, { language: lang }).value;
+});
+
+marked.use({
+  renderer: {
+    code(codeToken: any) {
+      const text: string = typeof codeToken === 'string' ? codeToken : String(codeToken?.text ?? '');
+      const lang: string | undefined = typeof codeToken === 'object' ? (codeToken?.lang as string | undefined) : undefined;
+      let highlighted: string;
+      try {
+        if (lang && hljs.getLanguage(lang)) {
+          highlighted = hljs.highlight(text, { language: lang }).value;
+        } else {
+          highlighted = hljs.highlightAuto(text).value;
+        }
+      } catch {
+        highlighted = text;
       }
-      return hljs.highlightAuto(code).value;
-    } catch {
-      return code;
-    }
+      const classAttr = lang ? ` class="hljs language-${lang}"` : ' class="hljs"';
+      return `<pre><code${classAttr}>${highlighted}</code></pre>`;
+    },
   },
 });
 
