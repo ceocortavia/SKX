@@ -8,6 +8,7 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import "./globals.css";
+import "@/lib/src_full/app/globals.css";
 
 export const metadata: Metadata = {
   title: "SKX",

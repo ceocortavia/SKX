@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Global stilark for SKX */
 html, body {
   margin: 0;
@@ -7,6 +11,20 @@ html, body {
 
 main {
   min-height: 100dvh;
+}
+
+/* Lett bakgrunn som ikke dominerer */
+body {
+  background: linear-gradient(180deg, #fefefe 0%, #f8fafc 100%);
+}
+
+@import 'highlight.js/styles/github.css';
+
+pre code {
+  display: block;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
 }
 
 

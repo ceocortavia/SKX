@@ -1,22 +1,28 @@
-export function toCSV<T extends object>(rows: T[], headers?: (keyof T)[]) {
-  if (!rows?.length) return "";
-  const cols = headers ?? (Object.keys(rows[0]) as (keyof T)[]);
-  const esc = (v: unknown) => {
-    const s = v == null ? "" : String(v);
-    return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const head = cols.map(c => esc(String(c))).join(",");
-  const body = rows.map(r => cols.map(c => esc((r as any)[c])).join(",")).join("\n");
-  return [head, body].join("\n");
+export function toCSV<T extends object>(data: T[], headers: (keyof T)[]): string {
+  const headerRow = headers.join(',');
+  const rows = data.map(row => {
+    return headers.map(header => {
+      const value = row[header];
+      if (typeof value === 'string') {
+        // Add quotes if the string contains a comma
+        return value.includes(',') ? `"${value}"` : value;
+      }
+      return value;
+    }).join(',');
+  });
+  return [headerRow, ...rows].join('\n');
 }
 
-export function downloadCSV(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+export function downloadCSV(filename: string, csv: string): void {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 }
-
-
-
