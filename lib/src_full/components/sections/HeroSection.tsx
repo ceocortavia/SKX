@@ -1,133 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import Button from "../ui/Button";
 
 export default function HeroSection() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
     <>
-      {/* Sticky Header - Alter Style */}
-      <header className="fixed top-0 left-0 w-full bg-white/90 backdrop-blur-md shadow-sm z-50 border-b border-gray-100/50">
-        <nav className="max-w-7xl mx-auto flex items-center justify-between px-6 lg:px-8 py-4">
-          {/* Logo */}
-          <motion.div 
-            className="flex items-center gap-3"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400 }}
-          >
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-600 to-blue-600 rounded-lg flex items-center justify-center">
-              <motion.svg 
-                className="w-5 h-5 text-white" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-                whileHover={{ rotate: 180 }}
-                transition={{ duration: 0.3 }}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </motion.svg>
-            </div>
-            <span className="font-bold text-xl text-slate-900">Skillexia</span>
-          </motion.div>
-          
-          {/* Desktop Navigation */}
-          <ul className="hidden md:flex items-center gap-8 text-slate-700 font-medium">
-            {["Features", "Tjenester", "Pricing", "Kontakt"].map((item) => (
-              <motion.li 
-                key={item}
-                whileHover={{ y: -2 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <a href={`#${item.toLowerCase()}`} className="hover:text-slate-900 transition-colors relative group">
-                  {item}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-violet-600 to-blue-600 group-hover:w-full transition-all duration-300"></span>
-                </a>
-              </motion.li>
-            ))}
-          </ul>
-
-          {/* Desktop CTA Button with Gradient Border */}
-          <div className="hidden md:block">
-            <motion.div
-              className="relative"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl blur-sm opacity-75 group-hover:opacity-100 transition duration-300"></div>
-              <Button className="relative bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-6 py-2.5 font-semibold transition-all duration-200 shadow-sm hover:shadow-md border border-transparent hover:border-violet-300">
-                Get Started
-              </Button>
-            </motion.div>
-          </div>
-
-          {/* Mobile Hamburger Menu */}
-          <motion.button
-            className="md:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-            whileTap={{ scale: 0.95 }}
-          >
-            <motion.svg 
-              className="w-5 h-5" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-              animate={mobileMenuOpen ? "open" : "closed"}
-              variants={{
-                open: { rotate: 180 },
-                closed: { rotate: 0 }
-              }}
-              transition={{ duration: 0.3 }}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                    d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-            </motion.svg>
-          </motion.button>
-        </nav>
-
-        {/* Mobile Navigation Menu */}
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={mobileMenuOpen ? { opacity: 1, height: "auto" } : { opacity: 0, height: 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-md overflow-hidden"
-        >
-          <div className="px-6 py-4 space-y-4">
-            {["Features", "Tjenester", "Pricing", "Kontakt"].map((item, i) => (
-              <motion.a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                className="block py-2 text-slate-700 hover:text-slate-900 transition-colors font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-                initial={{ opacity: 0, x: -20 }}
-                animate={mobileMenuOpen ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                transition={{ delay: i * 0.1, duration: 0.3 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {item}
-              </motion.a>
-            ))}
-            <motion.div 
-              className="pt-2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={mobileMenuOpen ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-              transition={{ delay: 0.4, duration: 0.3 }}
-            >
-              <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-6 py-2.5 font-semibold">
-                Get Started
-              </Button>
-            </motion.div>
-          </div>
-        </motion.div>
-      </header>
-
       {/* Hero Section with Floating Background */}
-      <section className="relative min-h-screen bg-gradient-to-b from-white via-[#f8fafd] to-[#ecf2fa] overflow-hidden pt-20">
+      <section className="relative z-0 min-h-screen bg-gradient-to-b from-white via-[#f8fafd] to-[#ecf2fa] overflow-hidden pt-20">
         {/* Animated Background Elements */}
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
           <motion.div 
             className="absolute -top-20 -left-20 w-96 h-96 bg-blue-100/30 rounded-full blur-3xl"
             animate={{ 
