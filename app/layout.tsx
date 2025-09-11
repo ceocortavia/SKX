@@ -1,47 +1,15 @@
-import type { Metadata } from "next";
-import {
-  ClerkProvider,
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
 import "./globals.css";
-import "@/lib/src_full/app/globals.css";
-import "@/styles/tokens.css";
+import { ReactNode } from "react";
+import Topbar from "@/components/marketing/Topbar";
 
-export const metadata: Metadata = {
-  title: "SKX",
-  description: "SKX – Clerk + Next.js App Router",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (!publishableKey && process.env.NODE_ENV === "production") {
-    throw new Error("Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in production environment");
-  }
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <ClerkProvider publishableKey={publishableKey || (process.env.NODE_ENV !== "production" ? "pk_test_placeholder" : undefined)}>
-      <html lang="en">
-        <body>
-          <header style={{ display: "flex", gap: 12, padding: 12 }}>
-            <SignedOut>
-              <SignInButton />
-              <SignUpButton />
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="no">
+      <body className="min-h-dvh bg-gradient-to-b from-white to-[#f4f7fb] text-gray-900">
+        <Topbar />
+        <main className="pt-16">{children}</main>
+      </body>
+    </html>
   );
 }
 
