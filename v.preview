@@ -1,0 +1,4 @@
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y29uY2lzZS1tb3NxdWl0by00MS5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_VPDhyAeh0TYLh8NDHPNoj6NUaGIHvifeRyIRZ46Ybf
+DATABASE_URL=postgresql://neondb_owner:<PASSORD>@ep-super-sound-a28808lb-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://neondb_owner:<PASSORD>@ep-super-sound-a28808lb.eu-central-1.aws.neon.tech/neondb?sslmode=require
