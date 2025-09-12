@@ -1,15 +1,16 @@
-import "./globals.css";
 import "@/lib/src_full/app/globals.css";
 import "@/styles/tokens.css";
-import { ReactNode } from "react";
+import "./globals.css";
+import type { ReactNode } from "react";
 import Topbar from "@/components/marketing/Topbar";
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="no">
-      <body className="min-h-dvh bg-gradient-to-b from-white to-[#f4f7fb] text-gray-900">
+      <body className="min-h-dvh antialiased text-black/80">
+        {/* ÉN global topbar */}
         <Topbar />
-        <main className="pt-16">{children}</main>
+        <main className="pt-16 relative z-0">{children}</main>
       </body>
     </html>
   );

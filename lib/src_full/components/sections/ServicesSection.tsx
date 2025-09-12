@@ -142,9 +142,9 @@ export default function ServicesSection() {
   ];
 
   return (
-    <section ref={sectionRef} id="tjenester" className="py-16 lg:py-24 px-6 lg:px-8 bg-gradient-to-b from-white via-slate-50/30 to-[#f8fafd] relative overflow-hidden">
+    <section ref={sectionRef} id="tjenester" className="py-16 lg:py-24 px-6 lg:px-8 bg-gradient-to-b from-white via-slate-50/30 to-[#f8fafd] relative z-0 overflow-hidden">
       {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <motion.div 
           className="absolute top-1/4 left-0 w-96 h-96 bg-violet-100/20 rounded-full blur-3xl"
           animate={{ 
@@ -261,7 +261,7 @@ export default function ServicesSection() {
                 >
                   {/* Gradient Glow Effect */}
                   <motion.div 
-                    className={`absolute inset-0 bg-gradient-to-r ${service.glowColor} rounded-2xl blur-xl transition-all duration-300 ${
+                    className={`pointer-events-none absolute inset-0 bg-gradient-to-r ${service.glowColor} rounded-2xl blur-xl transition-all duration-300 ${
                       isExpanded ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'
                     }`}
                   />
