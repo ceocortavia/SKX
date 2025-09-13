@@ -1,10 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWR from "swr";
+import { jsonFetcher } from "@/lib/fetcher";
 
 type BrregItem = { orgnr: string; name: string };
 
+type ProfileContext = {
+  organization: { id: string; orgnr: string | null; name: string | null } | null;
+  membership: { role: "owner" | "admin" | "member"; status: "approved" | "pending" } | null;
+  auth: { mfaVerified: boolean };
+  permissions: {
+    canInvite: boolean;
+    canManageDomains: boolean;
+    canBulkMembers: boolean;
+    canBulkRole: boolean;
+    readOnly: boolean;
+  };
+} | null;
+
 export default function ProfileClient() {
+  const { data } = useSWR<ProfileContext>("/api/profile/context", jsonFetcher, { revalidateOnFocus: false });
+
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<BrregItem[]>([]);
@@ -16,8 +33,8 @@ export default function ProfileClient() {
       try {
         const res = await fetch("/api/org/select", { cache: "no-store" });
         if (!res.ok) return;
-        const data = await res.json();
-        if (data?.organization_id) setSelected(String(data.organization_id));
+        const d = await res.json();
+        if (d?.organization_id) setSelected(String(d.organization_id));
       } catch {}
     })();
   }, []);
@@ -58,7 +75,25 @@ export default function ProfileClient() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Ny: vis valgt org/membership/perm kort */}
+      <div className="rounded-xl border border-gray-200 bg-white/70 p-3">
+        <div className="text-sm font-medium">Profilkontekst</div>
+        <div className="mt-1 text-xs text-gray-600">
+          {data?.organization ? (
+            <>
+              <div>Org: {data.organization.name ?? "(ukjent)"} ({data.organization.orgnr ?? data.organization.id})</div>
+              {data.membership && (
+                <div>Rolle: {data.membership.role} · Status: {data.membership.status}</div>
+              )}
+              <div>MFA: {data?.auth?.mfaVerified ? "verifisert" : "ikke verifisert"}</div>
+            </>
+          ) : (
+            <div>Ingen organisasjon valgt.</div>
+          )}
+        </div>
+      </div>
+
       <div className="flex gap-2">
         <input
           value={query}
