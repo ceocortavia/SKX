@@ -69,29 +69,25 @@ export async function GET(req: Request) {
   const client = await pool.connect();
   try {
     if (/^\d{9}$/.test(qRaw)) {
+      // Live først
+      const fresh = await fetchBrregOrgnr(qRaw);
+      if (fresh) {
+        const up = await client.query(
+          `select (public.upsert_brreg_cache($1,$2,$3,$4,$5,$6,$7)).*`,
+          [fresh.orgnr, fresh.name, null, null, null, null, fresh.status]
+        );
+        return NextResponse.json({ items: up.rows });
+      }
+
+      // Fallback til cache
       const cached = await client.query(
         `select orgnr, name, status from public.brreg_cache where orgnr=$1`,
         [qRaw]
       );
-      if (cached.rows[0]) return NextResponse.json({ items: cached.rows });
-
-      const fresh = await fetchBrregOrgnr(qRaw);
-      if (!fresh) return NextResponse.json({ items: [] });
-      const up = await client.query(
-        `select (public.upsert_brreg_cache($1,$2,$3,$4,$5,$6,$7)).*`,
-        [fresh.orgnr, fresh.name, null, null, null, null, fresh.status]
-      );
-      return NextResponse.json({ items: up.rows });
+      return NextResponse.json({ items: cached.rows });
     }
 
-    const q = `%${qRaw}%`;
-    const rows = await client.query(
-      `select orgnr, name, status from public.brreg_cache where name ilike $1 order by name asc limit 20`,
-      [q]
-    );
-    if (rows.rows.length > 0) return NextResponse.json({ items: rows.rows });
-
-    // Fallback til live-søk når cachen ikke har treff
+    // Navnesøk: Live først
     const freshList = await fetchBrregByName(qRaw);
     const upserted: BrregOrg[] = [];
     for (const item of freshList) {
@@ -105,7 +101,15 @@ export async function GET(req: Request) {
         console.error("[brreg.upsert]", e);
       }
     }
-    return NextResponse.json({ items: upserted });
+    if (upserted.length > 0) return NextResponse.json({ items: upserted });
+
+    // Fallback til cache ved null treff fra live
+    const q = `%${qRaw}%`;
+    const rows = await client.query(
+      `select orgnr, name, status from public.brreg_cache where name ilike $1 order by name asc limit 20`,
+      [q]
+    );
+    return NextResponse.json({ items: rows.rows });
   } catch (err) {
     console.error("[brreg]", err);
     return NextResponse.json({ items: [] });
