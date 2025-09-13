@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
@@ -31,8 +30,9 @@ export async function POST(req: Request) {
       orgId = ins.rows[0].id as string;
     }
 
-    cookies().set("orgId", orgId!, { path: "/", httpOnly: true });
-    return NextResponse.json({ ok: true, organization_id: orgId });
+    const res = NextResponse.json({ ok: true, organization_id: orgId });
+    res.cookies.set("orgId", orgId!, { path: "/", httpOnly: true });
+    return res;
   } catch (err) {
     console.error("[org.select]", err);
     return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 });
