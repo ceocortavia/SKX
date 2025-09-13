@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type BrregItem = { orgnr: string; name: string };
 
@@ -10,6 +10,17 @@ export default function ProfileClient() {
   const [items, setItems] = useState<BrregItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/org/select", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.organization_id) setSelected(String(data.organization_id));
+      } catch {}
+    })();
+  }, []);
 
   async function doSearch() {
     setError(null);

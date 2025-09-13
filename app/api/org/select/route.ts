@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
@@ -38,6 +39,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 });
   } finally {
     client.release();
+  }
+}
+
+export async function GET() {
+  try {
+    const jar = await cookies();
+    const orgId = jar.get("orgId")?.value || null;
+    return NextResponse.json({ organization_id: orgId });
+  } catch (err) {
+    return NextResponse.json({ organization_id: null });
   }
 }
 
