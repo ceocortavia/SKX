@@ -50,9 +50,6 @@ export async function POST(req: Request) {
         "request.clerk_user_id": auth.clerkUserId,
         "request.user_id": userId,
         "request.org_id": orgId,
-        "request.org_role": auth.org?.role ?? "",
-        "request.org_status": auth.org?.status ?? "",
-        "request.mfa": auth.mfaVerified ? "on" : "off",
       }, async () => {
         const org = existing.rows[0] ?? { orgnr, name: undefined };
         await client.query(
