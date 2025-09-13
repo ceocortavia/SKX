@@ -10,19 +10,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { orgnr } = await req.json().catch(() => ({} as any));
-  if (!/^\d{9}$/.test(orgnr ?? "")) {
-    return NextResponse.json({ ok: false, error: "invalid_orgnr" }, { status: 400 });
+  const body = await req.json().catch(() => ({} as any));
+  const orgnr: string | undefined = body?.orgnr;
+  const organizationIdInput: string | undefined = body?.organization_id;
+  if (!organizationIdInput && !/^\d{9}$/.test(orgnr ?? "")) {
+    return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
   }
   const client = await pool.connect();
   try {
-    const existing = await client.query(
-      `select id, orgnr, name from public.organizations where orgnr=$1`,
-      [orgnr]
-    );
-    let orgId: string | undefined = existing.rows[0]?.id;
+    let orgId: string | undefined = organizationIdInput;
+    let existing: any = { rows: [] as any[] };
 
-    if (!orgId) {
+    if (!orgId && orgnr) {
+      existing = await client.query(
+        `select id, orgnr, name from public.organizations where orgnr=$1`,
+        [orgnr]
+      );
+      orgId = existing.rows[0]?.id;
+    }
+
+    if (!orgId && orgnr) {
       const cache = await client.query(
         `select orgnr, name from public.brreg_cache where orgnr=$1`,
         [orgnr]
