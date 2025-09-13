@@ -1,95 +1,83 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
-import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
+import { auth } from "@clerk/nextjs/server";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   try {
-    const auth = await getAuthContext(req);
-    if (!auth) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) {
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+    }
 
     const client = await pool.connect();
     try {
-      const userRes = await client.query<{ id: string }>(
-        `select id from public.users where clerk_user_id=$1 limit 1`,
-        [auth.clerkUserId]
+      // Finn intern users.id (uuid)
+      let internalUserId: string | null = null;
+      const ures = await client.query<{ id: string }>(
+        `select id from public.users where clerk_user_id = $1 limit 1`,
+        [clerkUserId]
       );
-      if (userRes.rowCount === 0) {
-        return NextResponse.json({
-          organization: null,
-          membership: null,
-          auth: { mfaVerified: auth.mfaVerified },
-          permissions: {
-            canInvite: false,
-            canManageDomains: false,
-            canBulkMembers: false,
-            canBulkRole: false,
-            readOnly: true,
-          },
-        });
-      }
-      const internalUserId = userRes.rows[0].id;
-
-      const orgSel = await client.query<{ organization_id: string; orgnr: string | null; org_name: string | null }>(
-        `select organization_id, orgnr, org_name from public.user_org_selection where user_id=$1 limit 1`,
-        [internalUserId]
-      );
-      if (orgSel.rowCount === 0) {
-        return NextResponse.json({
-          organization: null,
-          membership: null,
-          auth: { mfaVerified: auth.mfaVerified },
-          permissions: {
-            canInvite: false,
-            canManageDomains: false,
-            canBulkMembers: false,
-            canBulkRole: false,
-            readOnly: true,
-          },
-        });
+      if (ures.rowCount) internalUserId = ures.rows[0].id;
+      if (!internalUserId) {
+        return NextResponse.json({ ok: true, organization: null, membership: null, mfa: false, permissions: [] });
       }
 
-      const { organization_id, orgnr, org_name } = orgSel.rows[0];
-
-      const data = await withGUC(client, {
+      // Hent valgt org via user_org_selection → organizations under RLS (request.user_id)
+      const orgJoin = await withGUC(client, {
         "request.user_id": internalUserId,
-        "request.org_id": organization_id,
       }, async () => {
-        const memRes = await client.query<{ role: string; status: string }>(
-          `select role, status from public.memberships where organization_id=$1 and user_id=$2 limit 1`,
-          [organization_id, internalUserId]
+        const r = await client.query<{ id: string; orgnr: string | null; name: string | null }>(
+          `select o.id, o.orgnr, o.name
+           from public.user_org_selection uos
+           join public.organizations o on o.id = uos.organization_id
+           where uos.user_id = $1
+           limit 1`,
+          [internalUserId]
         );
-        return { membership: memRes.rowCount ? memRes.rows[0] : null };
+        return r.rows[0] ?? null;
       });
 
-      const role = data.membership?.role ?? null;
-      const status = data.membership?.status ?? null;
-      const isAdminLike = role === "owner" || role === "admin";
-      const isPending = status === "pending";
+      if (!orgJoin) {
+        return NextResponse.json({ ok: true, organization: null, membership: null, mfa: false, permissions: [] });
+      }
 
-      const canInvite = isAdminLike && auth.mfaVerified && !isPending;
-      const canManageDomains = isAdminLike && auth.mfaVerified && !isPending;
-      const canBulkMembers = isAdminLike && !isPending && process.env.ADMIN_BULK_MEMBERS_ENABLED === "1";
-      const canBulkRole = isAdminLike && !isPending && process.env.ADMIN_BULK_ROLE_ENABLED === "1";
+      // Hent membership i valgt org under RLS (sett også request.org_id)
+      const membership = await withGUC(client, {
+        "request.user_id": internalUserId,
+        "request.org_id": orgJoin.id,
+      }, async () => {
+        const r = await client.query<{ role: "owner" | "admin" | "member"; status: "approved" | "pending" }>(
+          `select role, status from public.memberships where user_id=$1 and organization_id=$2 limit 1`,
+          [internalUserId, orgJoin.id]
+        );
+        return r.rows[0] ?? null;
+      });
+
+      const isAdminLike = membership?.role === "owner" || membership?.role === "admin";
+      const isPending = membership?.status === "pending";
+      const permissions = {
+        canInvite: !!isAdminLike && !isPending,
+        canManageDomains: !!isAdminLike && !isPending,
+        canBulkMembers: !!isAdminLike && !isPending && process.env.ADMIN_BULK_MEMBERS_ENABLED === "1",
+        canBulkRole: !!isAdminLike && !isPending && process.env.ADMIN_BULK_ROLE_ENABLED === "1",
+        readOnly: !membership || isPending,
+      };
 
       return NextResponse.json({
-        organization: { id: organization_id, orgnr, name: org_name },
-        membership: data.membership,
-        auth: { mfaVerified: auth.mfaVerified },
-        permissions: {
-          canInvite,
-          canManageDomains,
-          canBulkMembers,
-          canBulkRole,
-          readOnly: isPending || !role,
-        },
+        ok: true,
+        organization: orgJoin,
+        membership,
+        mfa: false,
+        permissions,
       });
     } finally {
       client.release();
     }
   } catch (err) {
-    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+    console.error("profile/context error", err);
+    return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 });
   }
 }
