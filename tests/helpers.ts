@@ -79,6 +79,31 @@ export async function expectInvalidInput(res: APIResponse, reason: string) {
   expect(json?.reason).toBe(reason);
 }
 
+/**
+ * Dump status, headers og responsinnhold (JSON hvis mulig, ellers tekst) for enkel feilsøking i tester.
+ * Bruk når du får HTML/redirect eller uventet payload.
+ */
+export async function debugResponse(res: APIResponse, label = 'response') {
+  const status = res.status();
+  const statusText = res.statusText();
+  const headers = res.headers();
+  let body: any = null;
+  let text: string | null = null;
+  try {
+    body = await res.json();
+  } catch {
+    try {
+      text = await res.text();
+    } catch {
+      text = null;
+    }
+  }
+  // Trunkér lang tekst så loggen er lesbar
+  const textPreview = text ? text.slice(0, 1200) : null;
+  // eslint-disable-next-line no-console
+  console.log(`[debugResponse:${label}]`, { status, statusText, headers, body, text: textPreview });
+}
+
 async function safeJson(res: APIResponse) {
   try {
     return await res.json();

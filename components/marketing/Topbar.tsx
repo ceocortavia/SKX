@@ -10,6 +10,7 @@ const nav = [
   { href: "/#about", label: "Om oss" },
   { href: "/contact", label: "Kontakt" },
   { href: "/docs", label: "Design" },
+  { href: "/profile", label: "Profil" },
 ];
 
 export default function Topbar() {
