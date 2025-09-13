@@ -1,8 +1,15 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { getAuthContext } from "@/lib/auth-context";
+import { withGUC } from "@/lib/withGUC";
 
 export async function POST(req: Request) {
+  const auth = await getAuthContext(req);
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { orgnr } = await req.json().catch(() => ({} as any));
   if (!/^\d{9}$/.test(orgnr ?? "")) {
     return NextResponse.json({ ok: false, error: "invalid_orgnr" }, { status: 400 });
@@ -29,6 +36,36 @@ export async function POST(req: Request) {
         [orgnr, name]
       );
       orgId = ins.rows[0].id as string;
+    }
+
+    // Persistér valget i user_org_selection under RLS via GUC
+    const userRes = await client.query(
+      `select id from public.users where clerk_user_id=$1`,
+      [auth.clerkUserId]
+    );
+    const userId: string | undefined = userRes.rows[0]?.id;
+
+    if (userId && orgId) {
+      await withGUC(client, {
+        "request.clerk_user_id": auth.clerkUserId,
+        "request.user_id": userId,
+        "request.org_id": orgId,
+        "request.org_role": auth.org?.role ?? "",
+        "request.org_status": auth.org?.status ?? "",
+        "request.mfa": auth.mfaVerified ? "on" : "off",
+      }, async () => {
+        const org = existing.rows[0] ?? { orgnr, name: undefined };
+        await client.query(
+          `insert into public.user_org_selection (user_id, organization_id, orgnr, org_name)
+           values ($1,$2,$3,$4)
+           on conflict (user_id) do update set
+             organization_id=excluded.organization_id,
+             orgnr=excluded.orgnr,
+             org_name=excluded.org_name,
+             updated_at=now()`,
+          [userId, orgId, org.orgnr ?? orgnr, org.name ?? null]
+        );
+      });
     }
 
     const res = NextResponse.json({ ok: true, organization_id: orgId });
