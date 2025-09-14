@@ -15,9 +15,12 @@ drop policy if exists user_owns_row on public.user_org_selection;
 create policy user_owns_row on public.user_org_selection
   using (user_id = nullif(current_setting('request.user_id', true),'')::uuid);
 
-drop policy if exists user_owns_row_write on public.user_org_selection;
-create policy user_owns_row_write on public.user_org_selection
-  for insert with check (user_id = nullif(current_setting('request.user_id', true),'')::uuid)
-  , for update using (user_id = nullif(current_setting('request.user_id', true),'')::uuid);
+drop policy if exists user_owns_row_write_insert on public.user_org_selection;
+create policy user_owns_row_write_insert on public.user_org_selection
+  for insert with check (user_id = nullif(current_setting('request.user_id', true),'')::uuid);
+
+drop policy if exists user_owns_row_write_update on public.user_org_selection;
+create policy user_owns_row_write_update on public.user_org_selection
+  for update using (user_id = nullif(current_setting('request.user_id', true),'')::uuid);
 
 
