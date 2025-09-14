@@ -73,7 +73,13 @@ export async function POST(req: Request) {
     }
 
     const res = NextResponse.json({ ok: true, organization_id: orgId });
-    res.cookies.set("orgId", orgId!, { path: "/", httpOnly: true });
+    res.cookies.set("orgId", orgId!, {
+      path: "/",
+      httpOnly: false,
+      sameSite: "lax",
+      secure: true,
+      maxAge: 60 * 60 * 24 * 30,
+    });
     return res;
   } catch (err) {
     console.error("[org.select]", err);

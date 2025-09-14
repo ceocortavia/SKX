@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { jsonFetcher } from "@/lib/fetcher";
+import { useRouter } from "next/navigation";
 
 type BrregItem = { orgnr: string; name: string };
 
@@ -20,7 +21,8 @@ type ProfileContext = {
 } | null;
 
 export default function ProfileClient() {
-  const { data } = useSWR<ProfileContext>("/api/profile/context", jsonFetcher, { revalidateOnFocus: false });
+  const router = useRouter();
+  const { data, mutate } = useSWR<ProfileContext>("/api/profile/context", (url) => fetch(url, { cache: "no-store" }).then(r => r.json()), { revalidateOnFocus: false });
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,6 +69,8 @@ export default function ProfileClient() {
       });
       if (!res.ok) throw new Error(`Valg feilet (${res.status})`);
       setSelected(orgnr);
+      await mutate();
+      router.refresh();
     } catch (e: any) {
       setError(e.message ?? "Ukjent feil");
     } finally {
@@ -76,7 +80,6 @@ export default function ProfileClient() {
 
   return (
     <div className="space-y-4">
-      {/* Ny: vis valgt org/membership/perm kort */}
       <div className="rounded-xl border border-gray-200 bg-white/70 p-3">
         <div className="text-sm font-medium">Profilkontekst</div>
         <div className="mt-1 text-xs text-gray-600">
@@ -86,7 +89,6 @@ export default function ProfileClient() {
               {data.membership && (
                 <div>Rolle: {data.membership.role} · Status: {data.membership.status}</div>
               )}
-              <div>MFA: {data?.auth?.mfaVerified ? "verifisert" : "ikke verifisert"}</div>
             </>
           ) : (
             <div>Ingen organisasjon valgt.</div>

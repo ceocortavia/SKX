@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { withGUC } from "@/lib/withGUC";
@@ -72,7 +74,7 @@ export async function GET(req: Request) {
         membership,
         mfa: false,
         permissions,
-      });
+      }, { headers: { "Cache-Control": "no-store" } });
     } finally {
       client.release();
     }
