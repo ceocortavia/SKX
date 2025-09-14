@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import pool from "@/lib/db";
 import { withGUC } from "@/lib/withGUC";
 import { auth } from "@clerk/nextjs/server";
@@ -42,18 +43,32 @@ export async function GET(req: Request) {
         return r.rows[0] ?? null;
       });
 
-      if (!orgJoin) {
-        return NextResponse.json({ ok: true, organization: null, membership: null, mfa: false, permissions: [] });
+      let organization = orgJoin;
+
+      // Fallback: cookie orgId → slå opp organizations direkte
+      if (!organization) {
+        const orgIdCookie = (await cookies()).get("orgId")?.value;
+        if (orgIdCookie) {
+          const r = await client.query<{ id: string; orgnr: string | null; name: string | null }>(
+            `select id, orgnr, name from public.organizations where id = $1 limit 1`,
+            [orgIdCookie]
+          );
+          organization = r.rows[0] ?? null;
+        }
+      }
+
+      if (!organization) {
+        return NextResponse.json({ ok: true, organization: null, membership: null, mfa: false, permissions: [] }, { headers: { "Cache-Control": "no-store" } });
       }
 
       // Hent membership i valgt org under RLS (sett også request.org_id)
       const membership = await withGUC(client, {
         "request.user_id": internalUserId,
-        "request.org_id": orgJoin.id,
+        "request.org_id": organization.id,
       }, async () => {
         const r = await client.query<{ role: "owner" | "admin" | "member"; status: "approved" | "pending" }>(
           `select role, status from public.memberships where user_id=$1 and organization_id=$2 limit 1`,
-          [internalUserId, orgJoin.id]
+          [internalUserId, organization.id]
         );
         return r.rows[0] ?? null;
       });
@@ -70,7 +85,7 @@ export async function GET(req: Request) {
 
       return NextResponse.json({
         ok: true,
-        organization: orgJoin,
+        organization,
         membership,
         mfa: false,
         permissions,
