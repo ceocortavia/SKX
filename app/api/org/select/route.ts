@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function POST(req: Request) {
   const auth = await getAuthContext(req);
@@ -54,12 +55,20 @@ export async function POST(req: Request) {
       );
       userId = r.rows[0]?.id;
       if (!userId) {
+        // Hent e-post fra Clerk hvis ikke tilgjengelig i auth-context
+        let email = auth.email || "";
+        if (!email) {
+          try {
+            const u = await clerkClient.users.getUser(auth.clerkUserId);
+            email = u?.primaryEmailAddress?.emailAddress || u?.emailAddresses?.[0]?.emailAddress || "";
+          } catch {}
+        }
         const ins = await client.query<{ id: string }>(
           `insert into public.users (clerk_user_id, primary_email, full_name, mfa_level)
            values ($1, $2, null, 'none')
            on conflict (clerk_user_id) do update set clerk_user_id=excluded.clerk_user_id
            returning id`,
-          [auth.clerkUserId, auth.email || null]
+          [auth.clerkUserId, email || "unknown@local"]
         );
         userId = ins.rows[0]?.id;
       }
@@ -82,6 +91,19 @@ export async function POST(req: Request) {
              updated_at=now()`,
           [userId, orgId, org.orgnr ?? orgnr, org.name ?? null]
         );
+
+        // (Valgfritt) Opprett pending medlemskap hvis det ikke finnes
+        const mem = await client.query(
+          `select 1 from public.memberships where user_id=$1 and organization_id=$2 limit 1`,
+          [userId, orgId]
+        );
+        if (!mem.rowCount) {
+          await client.query(
+            `insert into public.memberships (user_id, organization_id, role, status)
+             values ($1,$2,'member','pending')`,
+            [userId, orgId]
+          );
+        }
       });
     }
 
