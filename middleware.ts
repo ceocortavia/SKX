@@ -9,9 +9,16 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/brreg(.*)",
+  "/api/profile/context",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Sikker test-bypass i prod med delt hemmelighet (kun ved eksplisitt header)
+  const testSecret = req.headers.get('x-test-secret');
+  if (testSecret && testSecret === process.env.TEST_SEED_SECRET) {
+    return NextResponse.next();
+  }
+
   // Check for test bypass ONLY in development mode
   const isDev = process.env.NODE_ENV !== "production";
   const testBypass = isDev && process.env.TEST_AUTH_BYPASS === "1";

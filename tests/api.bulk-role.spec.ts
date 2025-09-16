@@ -39,10 +39,7 @@ test.describe('Bulk Role Change API', () => {
 
   test('should reject invalid JSON', async ({ request }) => {
     const res = await request.post('/api/memberships/bulk-role', {
-      headers: {
-        'content-type': 'application/json',
-        ...baseHeaders,
-      },
+      headers: baseHeaders,
       data: '{"invalid": json}',
     });
 

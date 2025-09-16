@@ -7,7 +7,17 @@ export interface AuthContext {
 }
 
 export async function getAuthContext(req: Request): Promise<AuthContext | null> {
-  // Check for test bypass in development mode
+  // Sikker test-bypass i prod med delt hemmelighet
+  const testSecret = req.headers.get('x-test-secret');
+  if (testSecret && testSecret === process.env.TEST_SEED_SECRET) {
+    const testUserId = req.headers.get('x-test-clerk-user-id') || '';
+    const testEmail = req.headers.get('x-test-clerk-email') || '';
+    if (testUserId && testEmail) {
+      return { clerkUserId: testUserId, email: testEmail, mfaVerified: true };
+    }
+  }
+
+  // Check for test bypass ONLY in development mode
   const isDev = process.env.NODE_ENV !== "production";
   const testBypass = isDev && process.env.TEST_AUTH_BYPASS === "1";
   

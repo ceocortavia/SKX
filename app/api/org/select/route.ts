@@ -45,12 +45,25 @@ export async function POST(req: Request) {
       orgId = ins.rows[0].id as string;
     }
 
-    // Persistér valget i user_org_selection under RLS via GUC
-    const userRes = await client.query(
-      `select id from public.users where clerk_user_id=$1`,
-      [auth.clerkUserId]
-    );
-    const userId: string | undefined = userRes.rows[0]?.id;
+    // Auto-upsert av bruker slik at valget alltid kan persisteres i DB
+    let userId: string | undefined;
+    {
+      const r = await client.query<{ id: string }>(
+        `select id from public.users where clerk_user_id=$1 limit 1`,
+        [auth.clerkUserId]
+      );
+      userId = r.rows[0]?.id;
+      if (!userId) {
+        const ins = await client.query<{ id: string }>(
+          `insert into public.users (clerk_user_id, primary_email, full_name, mfa_level)
+           values ($1, $2, null, 'none')
+           on conflict (clerk_user_id) do update set clerk_user_id=excluded.clerk_user_id
+           returning id`,
+          [auth.clerkUserId, auth.email || null]
+        );
+        userId = ins.rows[0]?.id;
+      }
+    }
 
     if (userId && orgId) {
       await withGUC(client, {
@@ -77,7 +90,7 @@ export async function POST(req: Request) {
       path: "/",
       httpOnly: false,
       sameSite: "lax",
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 30,
     });
     return res;
