@@ -48,6 +48,10 @@ export async function POST(req: Request) {
       }
       let body: unknown;
       try { body = raw ? JSON.parse(raw) : {}; } catch { return fail("invalid_json", "malformed_json", 400); }
+      // Avvis JSON som ikke er et objekt (f.eks. en ren streng)
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return fail("invalid_json", "malformed_json", 400);
+      }
       const parsed = invitationIdsSchema.safeParse(body);
       if (!parsed.success) {
         const issue = parsed.error.issues[0];
@@ -131,7 +135,7 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({ 
-        success: true,
+        ok: true,
         revoked: result.length,
         requested: limitedIds.length,
         details: result.map(r => ({ id: r.id, email: r.email, role: r.requested_role }))

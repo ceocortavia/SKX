@@ -45,6 +45,10 @@ export async function POST(req: Request) {
       try { raw = await req.text(); } catch { return fail("invalid_json", "malformed_json", 400); }
       let body: unknown;
       try { body = raw ? JSON.parse(raw) : {}; } catch { return fail("invalid_json", "malformed_json", 400); }
+      // Avvis JSON som ikke er et objekt (f.eks. en ren streng)
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return fail("invalid_json", "malformed_json", 400);
+      }
       const parsed = bulkUserIdsSchema.safeParse(body);
       if (!parsed.success) {
         const issue = parsed.error.issues[0];

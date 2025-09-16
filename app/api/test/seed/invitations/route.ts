@@ -21,6 +21,14 @@ export async function POST(req: Request) {
 
   const client = await pool.connect();
   try {
+    // Sørg for at organisasjonen finnes (for testmiljøet kan vi opprette en minimal rad)
+    await client.query(
+      `insert into public.organizations (id, name)
+       values ($1::uuid, 'TestOrg (seed)')
+       on conflict (id) do nothing`,
+      [orgId]
+    );
+
     const runId = req.headers.get('x-test-run-id') || process.env.TEST_RUN_ID || 'local';
     const invitations = await withGUC(client, {
       "request.org_id": orgId,
