@@ -59,7 +59,8 @@ export async function POST(req: Request) {
         let email = auth.email || "";
         if (!email) {
           try {
-            const u = await clerkClient.users.getUser(auth.clerkUserId);
+            const cc = await clerkClient();
+            const u = await cc.users.getUser(auth.clerkUserId);
             email = u?.primaryEmailAddress?.emailAddress || u?.emailAddresses?.[0]?.emailAddress || "";
           } catch {}
         }
