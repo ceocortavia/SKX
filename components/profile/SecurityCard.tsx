@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useClerk } from "@clerk/nextjs";
 
 type Ctx = { ok?: boolean; mfa?: { enabled: boolean; verified: boolean } | null };
 
 export default function SecurityCard() {
   const [ctx, setCtx] = useState<Ctx | null>(null);
   const [busy, setBusy] = useState(false);
+  const { signOut } = useClerk();
 
   async function load() {
     const res = await fetch('/api/profile/context', { cache: 'no-store' });
@@ -21,9 +23,17 @@ export default function SecurityCard() {
       setBusy(true);
       const res = await fetch('/api/security/sessions/revoke-all', { method: 'POST' });
       if (!res.ok) throw new Error();
-      // liten visuell feedback
       alert('Alle økter er logget ut');
       setTimeout(() => window.location.reload(), 600);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout() {
+    try {
+      setBusy(true);
+      await signOut({ redirectUrl: '/sign-in' });
     } finally {
       setBusy(false);
     }
@@ -45,6 +55,7 @@ export default function SecurityCard() {
         </div>
         <div className="flex gap-2">
           <button onClick={load} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Oppfrisk</button>
+          <button onClick={logout} disabled={busy} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50">Logg ut</button>
           <button onClick={revokeAll} disabled={busy} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50">Logg ut alle økter</button>
         </div>
       </div>
