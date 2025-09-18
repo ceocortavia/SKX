@@ -1,0 +1,58 @@
+# coderabbit.yaml
+# ---------------------------------------------------------------------
+# This is a configuration file for CodeRabbit, an AI-powered code reviewer.
+# Place this file in the root directory of your repository.
+# For more details, see the official documentation: https://coderabbit.ai/docs/configuration
+# ---------------------------------------------------------------------
+
+language: "en-US"
+
+# Configuration for pull request reviews
+reviews:
+  # You can disable reviews by setting this to false
+  enabled: true
+
+  # A list of glob patterns to exclude certain files or directories from review.
+  # This is useful for ignoring documentation, test data, or generated files.
+  exclude:
+    - "**/doc/**"
+    - "**/*.md"
+    - "LICENSE"
+    - "autogen.sh"
+    - "configure"
+    - "Makefile.am"
+
+  # Settings for the high-level summary of the pull request.
+  summaries:
+    enabled: true
+    tone: "professional"
+    prompt: "Provide a concise, high-level summary of the changes. Focus on the core purpose of the pull request and identify any significant architectural changes, potential risks, or key improvements."
+
+  # Settings for the line-by-line code suggestions.
+  line_by_line:
+    enabled: true
+
+    # This prompt gives CodeRabbit specific instructions for reviewing the code.
+    # It's tailored for a C project like skx.
+    prompt: |
+      As an expert C programmer reviewing a pull request for `skx`, please perform a meticulous review. Your primary focus should be on correctness, security, and maintainability.
+
+      Pay close attention to the following areas:
+
+      1.  **Memory Safety**: Scrutinize the code for common C vulnerabilities.
+          - Check for potential buffer overflows (`strcpy`, `gets`, etc.).
+          - Verify that every `malloc` has a corresponding `free` to prevent memory leaks.
+          - Look for any possible null pointer dereferences.
+          - Ensure proper error handling for functions that can fail (e.g., `malloc`, file I/O).
+
+      2.  **Code Clarity & Best Practices**:
+          - The code must be clear, readable, and self-documenting where possible.
+          - Suggest better names for variables and functions if they are unclear.
+          - Identify and discourage the use of "magic numbers"; recommend named constants or enums instead.
+          - Ensure the code style is consistent with the existing codebase.
+
+      3.  **Logic and Correctness**:
+          - Analyze the logic for potential off-by-one errors, race conditions, or incorrect assumptions.
+          - Verify that system calls and standard library functions are used correctly.
+
+      Provide concise, actionable feedback. If you suggest a change, please include a clear code example.
