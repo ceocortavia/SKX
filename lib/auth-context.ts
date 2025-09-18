@@ -9,7 +9,18 @@ export interface AuthContext {
 export async function getAuthContext(req: Request): Promise<AuthContext | null> {
   // Sikker test-bypass i prod med delt hemmelighet
   const testSecret = req.headers.get('x-test-secret');
-  if (testSecret && testSecret === process.env.TEST_SEED_SECRET) {
+  const secretMatches = !!testSecret && testSecret === process.env.TEST_SEED_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      // Ikke logg hemmeligheter, kun boolske indikatorer
+      console.log('auth-context test-bypass', {
+        provided: !!testSecret,
+        match: secretMatches,
+        haveEnv: !!process.env.TEST_SEED_SECRET,
+      });
+    } catch {}
+  }
+  if (secretMatches) {
     const testUserId = req.headers.get('x-test-clerk-user-id') || '';
     const testEmail = req.headers.get('x-test-clerk-email') || '';
     if (testUserId && testEmail) {
