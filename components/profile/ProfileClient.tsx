@@ -85,7 +85,7 @@ export default function ProfileClient() {
         <div className="mt-1 text-xs text-gray-600">
           {data?.organization ? (
             <>
-              <div>Org: {data.organization.name ?? "(ukjent)"} ({data.organization.orgnr ?? data.organization.id})</div>
+              <div>Org: {data.organization.name ?? "(ukjent)"} {data.organization.orgnr ? `(${data.organization.orgnr})` : `(${data.organization.id})`}</div>
               {data.membership && (
                 <div>Rolle: {data.membership.role} · Status: {data.membership.status}</div>
               )}
