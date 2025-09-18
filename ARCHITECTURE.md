@@ -50,6 +50,28 @@ Fokus: sikkerhet (RLS), MFA, multi-tenancy.
 
 ---
 
+## 🏢 Org‑valgflyt (withGUC + RLS)
+
+### Data og policies
+- Tabell: `public.user_org_selection (user_id pk, organization_id, orgnr, org_name, updated_at)`
+- RLS bruker `current_setting('request.user_id', true)` og `coalesce` for tolerant evaluering
+- Alle RLS‑sensitive queries kjører under `withGUC()` som setter `request.user_id` (+ `request.org_id` ved behov)
+
+### API‑mønster
+- `POST /api/org/select`: finn/lage org → auto‑upsert `users` → upsert `user_org_selection` i `withGUC` → sett `orgId`‑cookie (secure i prod) → opprett pending membership om mangler
+- `GET /api/profile/context`: les valgt org via DB (RLS) → fallback til `orgId`‑cookie → returner `organization`, `membership`, `permissions`
+- `GET /api/profile/organizations`: alle memberships for bruker
+- `POST /api/profile/leave`: forlat org (nekter owner), nuller valgt org hvis samme
+
+### Klientprinsipp
+- Etter `POST /api/org/select`: refetch `GET /api/profile/context` med `no-store` + `router.refresh()` for å sikre fersk SSR/CSR
+
+### Test‑bypass
+- Dev: `TEST_AUTH_BYPASS=1` og headere `x-test-clerk-user-id`/`x-test-clerk-email`
+- Prod (kun ved feilsøking): krever `x-test-secret == TEST_SEED_SECRET` + samme test‑headere. Debug‑ruter fjernes etter bruk
+
+---
+
 ## ☁️ Hosting & Deploy
 - **Vercel**  
   - Deploy fra `main`  
