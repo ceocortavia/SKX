@@ -195,3 +195,72 @@ npm run lint                      # Code linting
 **Status:** ✅ Production Ready with RLS, MFA, and comprehensive testing
 **Version:** 0.1.0
 **Last Updated:** August 2025
+
+## **👤 Profil og organisasjonsvalg (Clerk + Neon RLS)**
+
+### Kort fortalt
+- Datamodell: `public.user_org_selection (user_id pk, organization_id, orgnr, org_name, updated_at)` med RLS. Alle spørringer kjører under `withGUC` som setter minst `request.user_id` (og ofte `request.org_id`).
+- Flyt:
+  1. POST `POST /api/org/select` velger org via `organization_id` eller `orgnr` (oppretter org fra BRREG‑cache ved behov).
+  2. Auto‑upsert av `public.users` fra Clerk om intern bruker mangler.
+  3. Upsert til `user_org_selection` inne i `withGUC` (RLS‑sikkert) og sett `orgId`‑cookie (secure kun i prod).
+  4. Opprett pending membership om det ikke finnes.
+  5. `GET /api/profile/context` leser valgt org via DB (RLS) og faller tilbake til cookie om DB‑rad mangler.
+
+### API‑kontrakter
+- Velg org
+```bash
+POST /api/org/select
+# Body (én av):
+{ "organization_id": "<uuid>" }
+{ "orgnr": "916622570" }
+# Respons: { ok: true, organization_id: "<uuid>" }
+```
+- Profilkontekst (fersk data)
+```bash
+GET /api/profile/context  # { ok, organization, membership, permissions }
+```
+- Mine organisasjoner
+```bash
+GET /api/profile/organizations  # { ok, organizations: [{ organization_id, organization_name, orgnr, role }] }
+```
+- Forlat org
+```bash
+POST /api/profile/leave  # { organization_id }
+```
+
+### Klient
+- Etter vellykket `POST /api/org/select`: refetch `GET /api/profile/context` med `cache: 'no-store'` og kall `router.refresh()`.
+- `OrgCard` og `ProfileClient` følger mønsteret over.
+
+### Caching og cookies
+- API: `dynamic = 'force-dynamic'`, `revalidate = 0`, `Cache-Control: no-store`.
+- Cookie: `orgId` med `sameSite=lax`, `secure=true` kun i produksjon.
+
+### Test‑bypass
+- Lokal utvikling (dev):
+  - Sett `TEST_AUTH_BYPASS=1` i miljøet (se `playwright.config.ts`).
+  - Legg på headere:
+    - `x-test-clerk-user-id: user_a` (eller tilsvarende)
+    - `x-test-clerk-email: a@example.com`
+- Produksjon (kun eksplisitt og midlertidig for feilsøking):
+  - Krever `x-test-secret` som matcher `TEST_SEED_SECRET` i Vercel‑env.
+  - Bruk samme `x-test-clerk-*`‑headere. Debug‑ruter skal ikke ligge i prod; fjern dem etter bruk.
+
+### Feilsøking (quick tips)
+- 500 i `/api/org/select`: sjekk Clerk‑klientbruk og at e‑post kan hentes (fallback). Sjekk at upsert av `users` skjer før `withGUC`‑upsert til `user_org_selection`.
+- “Ingen organisasjon valgt”: verifiser DB‑rad i `user_org_selection`; cookie‑fallback i `profile/context` skal dekke mellomtilstand.
+- RLS‑avslag: sørg for at `withGUC` setter `request.user_id` (og `request.org_id` der det trengs). Policies bruker `current_setting(..., true)` for å være tolerante når GUC mangler.
+
+### cURL‑eksempler (lokal dev)
+```bash
+# Velg org via orgnr
+curl -i -X POST "http://localhost:3100/api/org/select" \
+  -H "content-type: application/json" \
+  -H "x-test-clerk-user-id: user_a" -H "x-test-clerk-email: a@example.com" \
+  --data '{"orgnr":"916622570"}'
+
+# Hent profilkontekst
+curl -s "http://localhost:3100/api/profile/context" \
+  -H "x-test-clerk-user-id: user_a" -H "x-test-clerk-email: a@example.com"
+```
