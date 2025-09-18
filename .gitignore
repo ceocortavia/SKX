@@ -6,3 +6,4 @@ node_modules
 # clerk configuration (can include secrets)
 /.clerk/
 .env*.local
+.tmp_secret_val
