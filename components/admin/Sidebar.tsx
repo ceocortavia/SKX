@@ -10,7 +10,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         aria-hidden="true"
       />
       <aside
-        className={`fixed z-30 h-dvh w-64 border-r border-slate-200 bg-white p-4 transition-transform dark:border-slate-800 dark:bg-slate-950 lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed z-30 h-dvh w-64 border-r border-black/10 bg-white/60 backdrop-blur p-4 transition-transform lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
         role="navigation"
         aria-label="Hovedmeny"
       >

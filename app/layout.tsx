@@ -9,8 +9,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="no">
       <body className="min-h-dvh antialiased text-black/80">
-        <Topbar />
         <Providers>
+          <Topbar />
           <main className="pt-16 relative z-0">{children}</main>
         </Providers>
       </body>

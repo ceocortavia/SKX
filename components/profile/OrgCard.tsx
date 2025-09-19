@@ -56,13 +56,13 @@ export default function OrgCard() {
     }
   }
 
-  if (loading) return <div className="rounded-xl border p-4">Laster …</div>;
+  if (loading) return <div className="rounded-xl border border-black/10 bg-white/70 backdrop-blur p-4">Laster …</div>;
 
   const selected = context?.organization;
   const membership = context?.membership;
 
   return (
-    <div className="rounded-xl border p-4 space-y-4">
+    <div className="rounded-xl border border-black/10 bg-white/70 backdrop-blur p-4 space-y-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm text-gray-500">Valgt organisasjon</div>
