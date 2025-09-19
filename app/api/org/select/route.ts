@@ -7,17 +7,8 @@ import { clerkClient } from "@clerk/nextjs/server";
 import type { AuthContext } from "@/lib/auth-context";
 
 export async function POST(req: Request) {
-  // Midlertidig bypass for test: hvis x-test-secret matcher, bruk headerverdier
-  let auth: AuthContext | null = null;
-  try {
-    const secret = req.headers.get("x-test-secret");
-    if (secret && secret === process.env.TEST_SEED_SECRET) {
-      const uid = req.headers.get("x-test-clerk-user-id") || "";
-      const email = req.headers.get("x-test-clerk-email") || "";
-      if (uid && email) auth = { clerkUserId: uid, email, mfaVerified: true };
-    }
-  } catch {}
-  if (!auth) auth = await getAuthContext(req);
+  // Revert: bruk standard auth-context igjen
+  const auth = await getAuthContext(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({} as any));
