@@ -12,6 +12,11 @@ type Body = {
 };
 
 export async function POST(req: Request) {
+  // Deaktivér i produksjon (kun til bruk i dev/preview)
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
+  }
+
   const secret = (req.headers.get("x-test-secret") || "").trim();
   const envSecret = (process.env.TEST_SEED_SECRET || "").trim();
   if (!secret || secret !== envSecret) {
