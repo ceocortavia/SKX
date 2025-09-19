@@ -8,8 +8,9 @@ export interface AuthContext {
 
 export async function getAuthContext(req: Request): Promise<AuthContext | null> {
   // Sikker test-bypass i prod med delt hemmelighet
-  const testSecret = req.headers.get('x-test-secret');
-  const secretMatches = !!testSecret && testSecret === process.env.TEST_SEED_SECRET;
+  const testSecret = (req.headers.get('x-test-secret') || '').trim();
+  const envSecret = (process.env.TEST_SEED_SECRET || '').trim();
+  const secretMatches = !!testSecret && testSecret === envSecret;
   if (process.env.NODE_ENV === 'production') {
     try {
       // Ikke logg hemmeligheter, kun boolske indikatorer
