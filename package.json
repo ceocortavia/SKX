@@ -13,7 +13,7 @@
     "db:seed": "psql \"$DATABASE_URL_UNPOOLED\" -v ON_ERROR_STOP=1 -f db/tests/local_seed_min.sql"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.31.3",
+    "@clerk/nextjs": "^6.32.0",
     "@types/classnames": "^2.3.0",
     "@types/pg": "^8.15.5",
     "classnames": "^2.5.1",
