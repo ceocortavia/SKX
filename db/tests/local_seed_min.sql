@@ -15,6 +15,10 @@ INSERT INTO public.users (clerk_user_id, primary_email, full_name, mfa_level)
 SELECT 'user_b','b@example.com','Bob','none'
 WHERE NOT EXISTS (SELECT 1 FROM public.users WHERE clerk_user_id='user_b');
 
+INSERT INTO public.users (clerk_user_id, primary_email, full_name, mfa_level)
+SELECT 'platform_admin','platform@example.com','Platform Admin','none'
+WHERE NOT EXISTS (SELECT 1 FROM public.users WHERE clerk_user_id='platform_admin');
+
 -- Membership: make user_a admin/approved in org
 DO $$
 DECLARE 
@@ -23,12 +27,26 @@ DECLARE
 BEGIN
   SELECT id INTO org FROM public.organizations WHERE orgnr='123456789';
   SELECT id INTO ua FROM public.users WHERE clerk_user_id='user_a';
+  PERFORM id FROM public.users WHERE clerk_user_id='platform_admin';
 
   -- Idempotent: delete existing membership for seed purposes
   DELETE FROM public.memberships WHERE organization_id=org AND user_id=ua;
 
   INSERT INTO public.memberships (organization_id, user_id, role, status)
   VALUES (org, ua, 'admin', 'approved');
+END$$;
+
+-- Ensure platform admin role
+DO $$
+DECLARE
+  super_user uuid;
+BEGIN
+  SELECT id INTO super_user FROM public.users WHERE clerk_user_id='platform_admin';
+  IF super_user IS NOT NULL THEN
+    INSERT INTO public.platform_admins (user_id, granted_by)
+    VALUES (super_user, super_user)
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
 END$$;
 
 -- Show what we created

@@ -57,6 +57,7 @@ npm run test:e2e:ui
 - **Framework:** Next.js 15 with App Router
 - **Styling:** Tailwind CSS
 - **Admin Panel:** `/admin` with RLS-protected data display
+- **Platform Admin Panel:** `/admin/platform` available for platform-wide admins to manage memberships across all organizations
 - **Authentication:** Clerk middleware with test bypass support
 
 ## **🔐 Security Features**
@@ -71,6 +72,7 @@ npm run test:e2e:ui
 ### **Authentication & Authorization**
 - **MFA Required:** Admin operations require MFA verification
 - **Role-Based Access:** Owner, Admin, Member roles
+- **Platform Admins:** Separate platform-level role stored in `platform_admins` table with global RLS bypass
 - **Organization Scoping:** All data scoped to user's organization
 - **Test Bypass:** Development-only authentication bypass for testing
 

@@ -18,11 +18,12 @@ export async function withGUC<T>(
   if (process.env.NODE_ENV !== 'production') {
     const guc = Object.fromEntries(entries);
     console.log('GUC:', {
-      org_id: guc['request.org_id'], 
-      user_id: guc['request.user_id'], 
+      org_id: guc['request.org_id'],
+      user_id: guc['request.user_id'],
       role: guc['request.org_role'],
-      status: guc['request.org_status'], 
-      mfa: guc['request.mfa']
+      status: guc['request.org_status'],
+      mfa: guc['request.mfa'],
+      platform_role: guc['request.platform_role'],
     });
   }
 

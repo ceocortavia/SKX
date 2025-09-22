@@ -10,6 +10,7 @@ Fokus: sikkerhet (RLS), MFA, multi-tenancy.
 - **Framework:** Next.js 15.5 (App Router, TS, Tailwind CSS)
 - **UI:** Dashboard, Admin-panel, Org-switcher
 - **Auth:** Clerk hooks for session, MFA hints
+- **Platform-admin:** Eget grensesnitt `/admin/platform` for super-admins som kan håndheve medlemskap på tvers av organisasjoner
 
 ---
 
