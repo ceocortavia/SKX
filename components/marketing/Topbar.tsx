@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { SignedIn, SignedOut, UserButton, useClerk } from "@clerk/nextjs";
+import { SignedIn, SignedOut, UserButton, useClerk, useUser } from "@clerk/nextjs";
 
 const nav = [
   { href: "/", label: "Hjem" },
@@ -17,6 +17,13 @@ export default function Topbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { signOut } = useClerk();
+  const { user } = useUser();
+  const superList = (process.env.NEXT_PUBLIC_SUPER_ADMINS || "ceo@cortavia.com")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const email = (user?.primaryEmailAddress?.emailAddress || "").toLowerCase();
+  const isSuperAdmin = !!email && superList.includes(email);
 
   // Små, lesbare del-komponenter for handlinger
   const SignedOutActionsDesktop = () => (
@@ -70,6 +77,14 @@ export default function Topbar() {
               {label}
             </Link>
           ))}
+          {isSuperAdmin && (
+            <Link
+              href="/admin/platform"
+              className={`text-sm hover:text-black transition ${pathname === "/admin/platform" ? "text-black" : "text-black/60"}`}
+            >
+              Platform-admin
+            </Link>
+          )}
           <SignedOutActionsDesktop />
           <SignedInActionsDesktop />
         </nav>
@@ -103,6 +118,15 @@ export default function Topbar() {
                     {label}
                   </Link>
                 ))}
+                {isSuperAdmin && (
+                  <Link
+                    href="/admin/platform"
+                    onClick={() => setOpen(false)}
+                    className="block px-4 py-2 text-sm text-black/80 hover:bg-black/5"
+                  >
+                    Platform-admin
+                  </Link>
+                )}
                 <SignedIn>
                   <Link
                     href="/profile"

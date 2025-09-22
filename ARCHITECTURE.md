@@ -22,6 +22,7 @@ Fokus: sikkerhet (RLS), MFA, multi-tenancy.
   - `GET /api/health/rls` → DB + RLS status
   - `GET /api/memberships` → Krever auth
   - `POST /api/org-update` → MFA-guarded
+  - `GET /api/platform/stats` / `/api/platform/admins` → Super-admin konsoll (krever `request.platform_role='super_admin'`)
 
 ---
 
@@ -38,7 +39,7 @@ Fokus: sikkerhet (RLS), MFA, multi-tenancy.
   - `audit_events` (append-only)  
 - **Sikkerhet:**  
   - RLS på alle tabeller  
-  - Session-vars: `request.user_id`, `request.org_id`, `request.mfa`  
+  - Session-vars: `request.user_id`, `request.org_id`, `request.mfa`, `request.platform_role`  
   - Policies testet via snapshot i CI
 
 ---

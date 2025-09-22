@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { SignUp } from "@clerk/nextjs";
 
 export default function Page() {
@@ -9,5 +11,4 @@ export default function Page() {
     </main>
   );
 }
-
 

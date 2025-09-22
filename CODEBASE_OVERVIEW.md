@@ -46,7 +46,7 @@
 
 ## Testing & QA
 - **End-to-End:** Playwright specs in `tests/` cover positive/negative API paths, bulk operations, org selection, and UI smoke tests.
-- **Platform Admin Tests:** `tests/api.platform-admin.spec.ts` validates global admin capabilities (listing orgs, editing memberships).
+- **Platform Admin Tests:** `tests/api.platform-admin.spec.ts` validates global admin capabilities (stats endpoint, super-admin CRUD, org/member controls).
 - **Helpers:** `tests/helpers.ts` centralises headers, seeding helpers, and expectation utilities for consistent assertions.
 - **Seeding:** `app/api/test/seed/route.ts` creates invitations for test runs (dev-only, guarded by `TEST_SEED_SECRET`).
 - **Policy Snapshots:** SQL snapshots under `db/tests/` verify RLS policy drift as part of CI.

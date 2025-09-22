@@ -1,33 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
-import { setPlatformRoleGUC, resolvePlatformRoleFromEmail } from "@/lib/platform-admin";
-
-export async function GET(req: Request) {
-  const auth = await getAuthContext(req);
-  if (!auth) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
-  const role = resolvePlatformRoleFromEmail(auth.email);
-  if (role !== 'super_admin') return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await setPlatformRoleGUC(client, 'super_admin');
-    const r = await client.query(`select id, orgnr, name, status_text, created_at, updated_at from public.organizations order by updated_at desc limit 200`);
-    await client.query('COMMIT');
-    return NextResponse.json({ ok: true, organizations: r.rows });
-  } catch (e) {
-    await client.query('ROLLBACK');
-    return NextResponse.json({ ok: false, error: 'internal_error' }, { status: 500 });
-  } finally {
-    client.release();
-  }
-}
-
-import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { getAuthContext } from "@/lib/auth-context";
-import { resolvePlatformAdmin, requirePlatformSuper } from "@/lib/platform-admin";
+import { ensurePlatformRoleGUC, resolvePlatformAdmin, requirePlatformSuper } from "@/lib/platform-admin";
 import { withGUC } from "@/lib/withGUC";
 
 export const runtime = "nodejs";
@@ -41,13 +15,14 @@ export async function GET(req: Request) {
 
     const client = await pool.connect();
     try {
-      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId);
+      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
       try {
         requirePlatformSuper(platformCtx);
       } catch (error: any) {
         const status = error?.statusCode ?? 403;
         return NextResponse.json({ ok: false, error: "forbidden" }, { status });
       }
+      await ensurePlatformRoleGUC(client, platformCtx);
 
       const url = new URL(req.url);
       const search = url.searchParams.get("search")?.trim() ?? "";

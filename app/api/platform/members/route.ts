@@ -1,43 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
-import { setPlatformRoleGUC, resolvePlatformRoleFromEmail } from "@/lib/platform-admin";
-
-export async function GET(req: Request) {
-  const auth = await getAuthContext(req);
-  if (!auth) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
-  const role = resolvePlatformRoleFromEmail(auth.email);
-  if (role !== 'super_admin') return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
-
-  const url = new URL(req.url);
-  const orgId = url.searchParams.get('orgId');
-  if (!orgId) return NextResponse.json({ ok: false, error: 'missing_orgId' }, { status: 400 });
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await setPlatformRoleGUC(client, 'super_admin');
-    const r = await client.query(
-      `select m.user_id, m.organization_id, m.role, m.status, u.primary_email
-       from public.memberships m
-       join public.users u on u.id = m.user_id
-       where m.organization_id = $1
-       order by m.role desc, u.primary_email asc`, [orgId]
-    );
-    await client.query('COMMIT');
-    return NextResponse.json({ ok: true, members: r.rows });
-  } catch (e) {
-    await client.query('ROLLBACK');
-    return NextResponse.json({ ok: false, error: 'internal_error' }, { status: 500 });
-  } finally {
-    client.release();
-  }
-}
-
-import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { getAuthContext } from "@/lib/auth-context";
-import { resolvePlatformAdmin, requirePlatformSuper } from "@/lib/platform-admin";
+import { ensurePlatformRoleGUC, resolvePlatformAdmin, requirePlatformSuper } from "@/lib/platform-admin";
 import { withGUC } from "@/lib/withGUC";
 import { platformMemberUpdateSchema } from "@/lib/schemas";
 import { z } from "zod";
@@ -69,13 +33,14 @@ export async function GET(req: Request) {
 
     const client = await pool.connect();
     try {
-      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId);
+      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
       try {
         requirePlatformSuper(platformCtx);
       } catch (error: any) {
         const status = error?.statusCode ?? 403;
         return NextResponse.json({ ok: false, error: "forbidden" }, { status });
       }
+      await ensurePlatformRoleGUC(client, platformCtx);
 
       const members = await withGUC(client, {
         "request.user_id": platformCtx!.userId,
@@ -156,13 +121,14 @@ export async function PATCH(req: Request) {
 
     const client = await pool.connect();
     try {
-      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId);
+      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
       try {
         requirePlatformSuper(platformCtx);
       } catch (error: any) {
         const statusCode = error?.statusCode ?? 403;
         return NextResponse.json({ ok: false, error: "forbidden" }, { status: statusCode });
       }
+      await ensurePlatformRoleGUC(client, platformCtx);
 
       const updated = await withGUC(client, {
         "request.user_id": platformCtx!.userId,
