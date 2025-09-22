@@ -264,3 +264,47 @@ curl -i -X POST "http://localhost:3100/api/org/select" \
 curl -s "http://localhost:3100/api/profile/context" \
   -H "x-test-clerk-user-id: user_a" -H "x-test-clerk-email: a@example.com"
 ```
+
+## **🔄 Databerikelse (BRREG + Regnskap + NAV + Doffin)**
+
+Appen beriker organisasjonsdata utover Enhetsregisteret. Berikelse trigges ved org‑valg og kan kjøres på forespørsel eller via cron.
+
+- Kilder:
+  - Enhetsregisteret/BRREG (grunninfo; synkron)
+  - Regnskapsregisteret (siste års omsetning, resultat før skatt, egenkapital)
+  - NAV Arbeidsplassen (aktive/nylige stillingsannonser, teknologi‑stikkord)
+  - Doffin (offentlige kontrakter; antall og eksempler)
+
+### Endepunkter
+- Manuell oppdatering for valgt org:
+```bash
+POST /api/org/enrich
+# Body (én av)
+{ "orgnr": "916622570" }
+{ "organization_id": "<uuid>" }
+```
+- Periodisk berikelse (cron):
+```bash
+GET /api/tasks/enrich?key=<CRON_ENRICH_SECRET>&limit=50
+# Alternativt via Vercel Cron header: x-vercel-cron: 1 (uten key)
+```
+
+### Miljøvariabler
+- `CRON_ENRICH_SECRET` – hemmelig nøkkel for manuelle/eksterne kall til cron‑endepunktet
+
+### Vercel Cron
+- Opprett en cron i Vercel Dashboard:
+  - Path: `/api/tasks/enrich`
+  - Schedule: `0 3 * * *` (daglig 03:00)
+  - Header: `x-vercel-cron: 1`
+
+### cURL
+```bash
+# Oppdater alt for orgnr
+curl -X POST "$BASE_URL/api/org/enrich" \
+  -H "content-type: application/json" \
+  --data '{"orgnr":"916622570"}'
+
+# Kjør cron manuelt (med nøkkel)
+curl "$BASE_URL/api/tasks/enrich?key=$CRON_ENRICH_SECRET&limit=50"
+```

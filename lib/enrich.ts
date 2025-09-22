@@ -1,0 +1,143 @@
+import type { PoolClient } from 'pg';
+
+type EnrichedOrg = {
+  orgnr: string;
+  name?: string | null;
+  org_form?: string | null;
+  registered_at?: string | null; // ISO string
+  status_text?: string | null;
+  raw_brreg_json?: any;
+  industry_code?: string | null;
+  address?: string | null;
+  ceo_name?: string | null;
+  revenue?: number | null;
+};
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) return false;
+  const v = value.toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
+async function fetchBrreg(orgnr: string): Promise<Partial<EnrichedOrg> | null> {
+  if (isTruthyEnv(process.env.MOCK_BRREG)) {
+    return {
+      orgnr,
+      name: 'Mockt organisasjon',
+      org_form: 'AS',
+      registered_at: new Date('2010-01-01').toISOString(),
+      status_text: 'AKTIV',
+      raw_brreg_json: { mock: true },
+      industry_code: '62.010',
+      address: 'Storgata 1, 0001 Oslo'
+    };
+  }
+  try {
+    const res = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`, {
+      headers: { accept: 'application/json' },
+      cache: 'no-store'
+    });
+    if (!res.ok) return null;
+    const data: any = await res.json();
+    const navn = data?.navn ?? null;
+    const orgForm = data?.organisasjonsform?.kode ?? null;
+    const regdt = data?.registreringsdatoEnhetsregisteret || data?.registreringsdatoEnhetsregisteret?.dato || null;
+    const slettet = data?.slettedato ?? data?.slettetDato;
+    const status = slettet ? 'SLETTET' : 'AKTIV';
+    // adresse
+    const addrObj = data?.forretningsadresse || data?.forretningsAdresse || data?.beliggenhetsadresse;
+    const addr = addrObj ? [addrObj?.adresse || addrObj?.adresse?.join?.(' '), addrObj?.postnummer, addrObj?.poststed]
+      .filter(Boolean).join(', ') : null;
+    const nace = (data?.naeringskode1?.kode || data?.naeringskode1?.kode?.toString?.()) ?? null;
+    return {
+      orgnr,
+      name: navn,
+      org_form: orgForm,
+      registered_at: regdt ? new Date(regdt).toISOString() : null,
+      status_text: status,
+      raw_brreg_json: data,
+      industry_code: nace,
+      address: addr
+    };
+  } catch (e) {
+    console.error('[enrich.brreg]', e);
+    return null;
+  }
+}
+
+async function fetchProff(orgnr: string): Promise<Partial<EnrichedOrg>> {
+  // Placeholder: Proff har ingen offentlig gratis API; her må man ha key/proxy.
+  // Vi støtter mock via env, ellers returnerer vi tomme felter.
+  if (isTruthyEnv(process.env.MOCK_PROFF)) {
+    return { ceo_name: 'Kari Leder', revenue: 123456789 };
+  }
+  return {};
+}
+
+async function fetchPurehelp(orgnr: string): Promise<Partial<EnrichedOrg>> {
+  if (isTruthyEnv(process.env.MOCK_PUREHELP)) {
+    return { ceo_name: 'Ola Daglig Leder', revenue: 234567890 };
+  }
+  return {};
+}
+
+export async function enrichOrganizationData(orgnr: string, client: PoolClient): Promise<void> {
+  if (!/^\d{9}$/.test(orgnr)) return;
+
+  // 1) Brønnøysund først
+  const brreg = await fetchBrreg(orgnr);
+
+  // 2) Proff.no deretter
+  const proff = await fetchProff(orgnr);
+
+  // 3) Purehelp.no
+  const pure = await fetchPurehelp(orgnr);
+
+  const merged: EnrichedOrg = {
+    orgnr,
+    name: brreg?.name ?? null,
+    org_form: brreg?.org_form ?? null,
+    registered_at: brreg?.registered_at ?? null,
+    status_text: brreg?.status_text ?? null,
+    raw_brreg_json: brreg?.raw_brreg_json ?? null,
+    industry_code: brreg?.industry_code ?? null,
+    address: brreg?.address ?? null,
+    ceo_name: proff?.ceo_name ?? pure?.ceo_name ?? null,
+    revenue: (proff?.revenue as number | undefined) ?? (pure?.revenue as number | undefined) ?? null
+  };
+
+  // Upsert til organizations
+  // Merk: Vi holder oss til feltene definert i 010_base_schema + utvidelser.
+  await client.query(
+    `insert into public.organizations (orgnr, name, org_form, registered_at, status_text, raw_brreg_json, industry_code, address, ceo_name, revenue)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     on conflict (orgnr) do update set
+       name = excluded.name,
+       org_form = excluded.org_form,
+       registered_at = excluded.registered_at,
+       status_text = excluded.status_text,
+       raw_brreg_json = excluded.raw_brreg_json,
+       industry_code = excluded.industry_code,
+       address = excluded.address,
+       ceo_name = excluded.ceo_name,
+       revenue = excluded.revenue,
+       updated_at = now()`,
+    [
+      merged.orgnr,
+      merged.name,
+      merged.org_form,
+      merged.registered_at ? new Date(merged.registered_at) : null,
+      merged.status_text,
+      merged.raw_brreg_json,
+      merged.industry_code,
+      merged.address,
+      merged.ceo_name,
+      merged.revenue ?? null
+    ]
+  );
+}
+
+
+
+
+

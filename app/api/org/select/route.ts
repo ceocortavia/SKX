@@ -4,6 +4,8 @@ import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { clerkClient } from "@clerk/nextjs/server";
+import { enrichOrganizationData } from "@/lib/enrich";
+import { enrichOrganizationExternal } from "@/lib/enrichmentService";
 import type { AuthContext } from "@/lib/auth-context";
 
 export async function POST(req: Request) {
@@ -75,6 +77,18 @@ export async function POST(req: Request) {
       }
     }
 
+    // Berik organisasjonsdata (BRREG) synkront, og trigge ekstern berikelse asynkront i bakgrunnen
+    const orgnrToEnrich = orgnr || existing.rows[0]?.orgnr;
+    if (orgnrToEnrich) {
+      try {
+        await enrichOrganizationData(orgnrToEnrich, client);
+      } catch (e) {
+        console.error("[org.select.enrich]", e);
+      }
+      // Ekstern berikelse i bakgrunnen (ikke blokker responsen)
+      enrichOrganizationExternal(orgnrToEnrich, client).catch((e) => console.error("[org.select.external]", e));
+    }
+
     if (userId && orgId) {
       await withGUC(client, {
         "request.clerk_user_id": auth.clerkUserId,
@@ -105,6 +119,7 @@ export async function POST(req: Request) {
             [userId, orgId]
           );
         }
+
       });
     }
 

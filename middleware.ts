@@ -36,6 +36,13 @@ export default clerkMiddleware(async (auth, req) => {
   }
   
   if (isPublicRoute(req)) return;
+  // Tillat cron-endepunkt med delt hemmelighet
+  if (req.nextUrl.pathname.startsWith('/api/tasks/enrich')) {
+    const key = req.nextUrl.searchParams.get('key');
+    if (key && key === process.env.CRON_ENRICH_SECRET) {
+      return NextResponse.next();
+    }
+  }
   const { userId, redirectToSignIn } = await auth();
   if (!userId) return redirectToSignIn();
 });

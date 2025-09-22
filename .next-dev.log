@@ -1,0 +1,24 @@
+   ▲ Next.js 15.5.2
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.86.31:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1187ms
+ ✓ Compiled /middleware in 161ms (221 modules)
+ ✓ Compiled /api/health/rls in 467ms (296 modules)
+ GET /api/health/rls 200 in 557ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (174kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /api/org/select in 400ms (419 modules)
+GUC: {
+  org_id: '3c25e6b3-5bbc-45ec-8725-c2aa92bfa5b6',
+  user_id: 'bbf7bfcf-0814-46b3-8211-89faf70510b2',
+  role: undefined,
+  status: undefined,
+  mfa: undefined
+}
+ POST /api/org/select 200 in 1831ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1471ms (1980 modules)
+ GET / 200 in 2010ms
+ POST / 200 in 51ms

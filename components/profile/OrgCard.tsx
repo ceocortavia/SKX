@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type Org = { organization_id: string; organization_name: string; orgnr: string | null; role: "member"|"admin"|"owner" };
 
@@ -10,6 +11,7 @@ export default function OrgCard() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [switching, setSwitching] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [enriching, setEnriching] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -56,6 +58,23 @@ export default function OrgCard() {
     }
   }
 
+  async function enrichSelected() {
+    if (!context?.organization?.orgnr) return;
+    try {
+      setEnriching(true);
+      const res = await fetch('/api/org/enrich', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ orgnr: context.organization.orgnr })
+      });
+      if (!res.ok) throw new Error('enrich_failed');
+      await load();
+      alert('Organisasjonsdata oppdatert fra BRREG');
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   if (loading) return <div className="rounded-xl border border-black/10 bg-white/70 backdrop-blur p-4">Laster …</div>;
 
   const selected = context?.organization;
@@ -85,6 +104,23 @@ export default function OrgCard() {
           >
             Forlat
           </button>
+        ) : null}
+        {selected?.orgnr ? (
+          <button
+            disabled={enriching}
+            onClick={enrichSelected}
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            {enriching ? 'Oppdaterer…' : 'Oppdater fra BRREG'}
+          </button>
+        ) : null}
+        {selected ? (
+          <Link
+            href="/organization/brreg"
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+          >
+            Se organisasjonsprofil
+          </Link>
         ) : null}
       </div>
 
