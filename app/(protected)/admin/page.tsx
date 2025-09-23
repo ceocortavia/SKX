@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import useSWR, { mutate } from "swr";
 import useSWRInfinite from "swr/infinite";
 import { jsonFetcher } from "@/lib/fetcher";
@@ -9,7 +10,11 @@ import { QuickDates } from "@/lib/quick-dates";
 import { ExportDropdown } from "@/lib/export-dropdown";
 import { BulkRoleChanger } from "@/lib/bulk-role-changer";
 import AnalyticsPanel from "@/components/admin/AnalyticsPanel";
-import { useState, useMemo } from "react";
+import InvitationCopyGenerator from "@/components/admin/InvitationCopyGenerator";
+import CsvImportAssistant from "@/components/admin/CsvImportAssistant";
+import AdminCopilot from "@/components/admin/AdminCopilot";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Membership = { user_id: string; role: string; status: string; created_at: string };
 type Domain = { id: string; domain: string; verified: boolean };
@@ -19,8 +24,8 @@ type AuditPage = { items: Audit[]; nextCursor: string | null; hasMore: boolean }
 
 const showAnalytics = process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === "1";
 const tabs = showAnalytics 
-  ? ["Members", "Org domains", "Invitations", "Audit", "Analytics", "Profile"] as const
-  : ["Members", "Org domains", "Invitations", "Audit", "Profile"] as const;
+  ? ["Members", "Org domains", "Invitations", "Audit", "Copilot", "Analytics", "Profile"] as const
+  : ["Members", "Org domains", "Invitations", "Audit", "Copilot", "Profile"] as const;
 type Tab = typeof tabs[number];
 
 function RefreshBtn({ keys }: { keys: string[] }) {
@@ -279,7 +284,32 @@ function BulkRevokeMembersBtn({
 }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<Tab>("Members");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const tabSlug = (value: Tab) => value.toLowerCase().replace(/\s+/g, '-');
+  const resolveTabFromQuery = useMemo(() => {
+    const param = searchParams.get('tab');
+    if (!param) return "Members" as Tab;
+    const match = tabs.find((t) => tabSlug(t) === param.toLowerCase());
+    return (match ?? "Members") as Tab;
+  }, [searchParams]);
+
+  const [tab, setTab] = useState<Tab>(resolveTabFromQuery);
+
+  useEffect(() => {
+    if (resolveTabFromQuery !== tab) {
+      setTab(resolveTabFromQuery);
+    }
+  }, [resolveTabFromQuery, tab]);
+
+  const setTabAndSyncQuery = (nextTab: Tab) => {
+    if (nextTab === tab) return;
+    setTab(nextTab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tabSlug(nextTab));
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInvitationIds, setSelectedInvitationIds] = useState<Set<string>>(new Set());
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
@@ -473,6 +503,7 @@ export default function AdminPage() {
   const pendingMemberCount = searchedMemberships.filter(m => m.status === 'pending').length;
 
   return (
+    <Suspense fallback={<main className="mx-auto max-w-5xl p-6"><p>Loading…</p></main>}>
     <main className="mx-auto max-w-5xl p-6 space-y-6">
         <h1 className="text-2xl font-semibold">Admin</h1>
 
@@ -480,9 +511,9 @@ export default function AdminPage() {
         {tabs.map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => setTabAndSyncQuery(t)}
             className={`px-3 py-1 rounded border ${tab === t ? "bg-black text-white" : "bg-white hover:bg-gray-50"}`}
-            data-testid={`tab-${t.toLowerCase().replace(" ", "-")}`}
+            data-testid={`tab-${tabSlug(t)}`}
           >
             {t}
           </button>
@@ -556,6 +587,7 @@ export default function AdminPage() {
                 <ClearFiltersBtn onClear={clearMemberFilters} />
               )}
             </div>
+            <CsvImportAssistant />
             <div className="mb-4">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -661,6 +693,7 @@ export default function AdminPage() {
                 <ClearFiltersBtn onClear={clearInvitationFilters} />
               )}
             </div>
+            <InvitationCopyGenerator />
             <div className="mb-4">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -749,6 +782,12 @@ export default function AdminPage() {
         </Panel>
         )}
 
+        {tab === "Copilot" && (
+          <Panel loading={false}>
+            <AdminCopilot />
+          </Panel>
+        )}
+
         {tab === "Analytics" && showAnalytics && (
           <AnalyticsPanel />
         )}
@@ -769,6 +808,7 @@ export default function AdminPage() {
         </p>
       )}
     </main>
+    </Suspense>
   );
 }
 
