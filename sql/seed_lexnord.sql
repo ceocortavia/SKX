@@ -88,7 +88,7 @@ values (
     'notes', 'MVP seed case – tildel til advokat, attestér og sett klar status.'
   )
 )
-on conflict (title, organization_id) do update
+on conflict (id) do update
   set client_name = excluded.client_name,
       status = excluded.status,
       metadata = excluded.metadata,
