@@ -29,27 +29,48 @@ on conflict (clerk_user_id) do update
       full_name = excluded.full_name,
       updated_at = now();
 
--- 3. Knytt medlemmer / roller
-with org as (
-  select id from public.organizations where orgnr = '920123456' limit 1
-)
-insert into public.memberships (user_id, organization_id, role, status)
-select u.id,
-       (select id from org),
-       (member_role.role)::member_role,
-       (member_role.status)::membership_status
-from public.users u
-join (values
-  ('admin1@lexnord.test', 'owner', 'approved'),
-  ('admin2@lexnord.test', 'admin', 'approved'),
-  ('advokat1@lexnord.test', 'member', 'approved'),
-  ('advokat2@lexnord.test', 'member', 'approved'),
-  ('assistent@lexnord.test', 'member', 'approved')
-) as member_role(email, role, status) on lower(u.primary_email) = member_role.email
-on conflict (user_id, organization_id) do update
-  set role = excluded.role,
-      status = excluded.status,
-      updated_at = now();
+do $$
+begin
+  if exists (select 1 from pg_type where typname = 'membership_status') then
+    insert into public.memberships (user_id, organization_id, role, status)
+    select u.id,
+           (select id from public.organizations where orgnr = '920123456' limit 1),
+           (mr.role)::member_role,
+           (mr.status)::membership_status
+    from public.users u
+    join (values
+      ('admin1@lexnord.test', 'owner', 'approved'),
+      ('admin2@lexnord.test', 'admin', 'approved'),
+      ('advokat1@lexnord.test', 'member', 'approved'),
+      ('advokat2@lexnord.test', 'member', 'approved'),
+      ('assistent@lexnord.test', 'member', 'approved')
+    ) as mr(email, role, status) on lower(u.primary_email) = mr.email
+    on conflict (user_id, organization_id) do update
+      set role = excluded.role,
+          status = excluded.status,
+          updated_at = now();
+  elsif exists (select 1 from pg_type where typname = 'member_status') then
+    insert into public.memberships (user_id, organization_id, role, status)
+    select u.id,
+           (select id from public.organizations where orgnr = '920123456' limit 1),
+           (mr.role)::member_role,
+           (mr.status)::member_status
+    from public.users u
+    join (values
+      ('admin1@lexnord.test', 'owner', 'approved'),
+      ('admin2@lexnord.test', 'admin', 'approved'),
+      ('advokat1@lexnord.test', 'member', 'approved'),
+      ('advokat2@lexnord.test', 'member', 'approved'),
+      ('assistent@lexnord.test', 'member', 'approved')
+    ) as mr(email, role, status) on lower(u.primary_email) = mr.email
+    on conflict (user_id, organization_id) do update
+      set role = excluded.role,
+          status = excluded.status,
+          updated_at = now();
+  else
+    raise exception 'Neither membership_status nor member_status enum found';
+  end if;
+end $$;
 
 -- 4. Seed første sak
 with org as (
