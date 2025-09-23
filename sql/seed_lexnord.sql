@@ -31,45 +31,42 @@ on conflict (clerk_user_id) do update
 
 do $$
 begin
-  if exists (select 1 from pg_type where typname = 'membership_status') then
-    insert into public.memberships (user_id, organization_id, role, status)
-    select u.id,
-           (select id from public.organizations where orgnr = '920123456' limit 1),
-           (mr.role)::member_role,
-           (mr.status)::membership_status
-    from public.users u
-    join (values
-      ('admin1@lexnord.test', 'owner', 'approved'),
-      ('admin2@lexnord.test', 'admin', 'approved'),
-      ('advokat1@lexnord.test', 'member', 'approved'),
-      ('advokat2@lexnord.test', 'member', 'approved'),
-      ('assistent@lexnord.test', 'member', 'approved')
-    ) as mr(email, role, status) on lower(u.primary_email) = mr.email
-    on conflict (user_id, organization_id) do update
-      set role = excluded.role,
-          status = excluded.status,
-          updated_at = now();
-  elsif exists (select 1 from pg_type where typname = 'member_status') then
-    insert into public.memberships (user_id, organization_id, role, status)
-    select u.id,
-           (select id from public.organizations where orgnr = '920123456' limit 1),
-           (mr.role)::member_role,
-           (mr.status)::member_status
-    from public.users u
-    join (values
-      ('admin1@lexnord.test', 'owner', 'approved'),
-      ('admin2@lexnord.test', 'admin', 'approved'),
-      ('advokat1@lexnord.test', 'member', 'approved'),
-      ('advokat2@lexnord.test', 'member', 'approved'),
-      ('assistent@lexnord.test', 'member', 'approved')
-    ) as mr(email, role, status) on lower(u.primary_email) = mr.email
-    on conflict (user_id, organization_id) do update
-      set role = excluded.role,
-          status = excluded.status,
-          updated_at = now();
-  else
-    raise exception 'Neither membership_status nor member_status enum found';
-  end if;
+  -- Finn faktisk enumtypen for memberships.status i dette miljøet
+  declare status_typ text;
+  begin
+    select t.typname
+      into status_typ
+    from pg_type t
+    join pg_attribute a on a.atttypid = t.oid
+    join pg_class c on c.oid = a.attrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relname = 'memberships' and a.attname = 'status'
+    limit 1;
+
+    if status_typ is null then
+      raise exception 'Could not detect enum type for memberships.status';
+    end if;
+
+    execute format($q$
+      insert into public.memberships (user_id, organization_id, role, status)
+      select u.id,
+             (select id from public.organizations where orgnr = '920123456' limit 1),
+             (mr.role)::member_role,
+             (mr.status)::%I
+      from public.users u
+      join (values
+        ('admin1@lexnord.test', 'owner', 'approved'),
+        ('admin2@lexnord.test', 'admin', 'approved'),
+        ('advokat1@lexnord.test', 'member', 'approved'),
+        ('advokat2@lexnord.test', 'member', 'approved'),
+        ('assistent@lexnord.test', 'member', 'approved')
+      ) as mr(email, role, status) on lower(u.primary_email) = mr.email
+      on conflict (user_id, organization_id) do update
+        set role = excluded.role,
+            status = excluded.status,
+            updated_at = now()
+    $q$, status_typ);
+  end;
 end $$;
 
 -- 4. Seed første sak
