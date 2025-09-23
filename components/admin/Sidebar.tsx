@@ -21,6 +21,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           <NavItem href="/invitations" label="Invitasjoner" />
           <NavItem href="/audit" label="Audit" />
           <NavItem href="/analytics" label="Analytics" />
+          <NavItem href="/admin/platform" label="Platform-admin" />
         </nav>
       </aside>
     </>
@@ -37,5 +38,4 @@ function NavItem({ href, label }: { href: string; label: string }) {
     </Link>
   );
 }
-
 

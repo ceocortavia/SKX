@@ -28,4 +28,10 @@ export const invitationIdsSchema = z.object({
     .max(100, { message: "too_many_invitationIds" }),
 });
 
+export const platformMemberUpdateSchema = z.object({
+  organizationId: z.string().uuid(),
+  userId: z.string().uuid(),
+  role: z.enum(["owner", "admin", "member"]).optional(),
+  status: z.enum(["approved", "pending"]).optional(),
+});
 

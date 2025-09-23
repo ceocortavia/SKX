@@ -44,6 +44,7 @@ npm run test:e2e:ui
 - **Authentication:** Clerk with MFA support
 - **API Routes:** Next.js App Router with RLS-guarded operations
 - **Security:** RLS policies, MFA requirements, audit logging
+- **Super Admin Console:** Platform-wide controls with global RLS context for designated super admins
 
 ### **API Endpoints**
 - **Health:** `/api/health/rls` ✅ implemented
@@ -52,11 +53,13 @@ npm run test:e2e:ui
 - **Invitations:** `/api/invitations` ✅ implemented
 - **Audit:** `/api/audit` ✅ implemented
 - **User Profile:** `/api/users/update-safe` ✅ implemented
+- **Platform Console:** `/api/platform/stats`, `/api/platform/organizations`, `/api/platform/members`, `/api/platform/admins` ✅ implemented
 
 ### **Frontend**
 - **Framework:** Next.js 15 with App Router
 - **Styling:** Tailwind CSS
 - **Admin Panel:** `/admin` with RLS-protected data display
+- **Platform Admin Panel:** `/admin/platform` available for platform-wide admins to manage memberships across all organizations
 - **Authentication:** Clerk middleware with test bypass support
 
 ## **🔐 Security Features**
@@ -71,6 +74,7 @@ npm run test:e2e:ui
 ### **Authentication & Authorization**
 - **MFA Required:** Admin operations require MFA verification
 - **Role-Based Access:** Owner, Admin, Member roles
+- **Platform Admins:** Separate platform-level role stored i `platform_admins` med global RLS-bypass, console på `/admin/platform`, env-shortcut via `SUPER_ADMINS`
 - **Organization Scoping:** All data scoped to user's organization
 - **Test Bypass:** Development-only authentication bypass for testing
 
