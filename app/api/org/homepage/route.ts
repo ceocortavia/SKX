@@ -27,17 +27,21 @@ export async function POST(req: Request) {
       const userId = u.rows[0]?.id;
       if (!userId) return NextResponse.json({ ok: false, error: "user_not_found" }, { status: 400 });
 
-      // Sjekk rolle (owner/admin) for valgt org
+      // Sjekk rolle (owner/admin) + status for valgt org
       const roleRes = await withGUC(client, { "request.user_id": userId, "request.org_id": organizationId }, async () => {
-        const r = await client.query<{ role: 'owner'|'admin'|'member' }>(
-          `select role from public.memberships where user_id=$1 and organization_id=$2 limit 1`,
+        const r = await client.query<{ role: 'owner'|'admin'|'member'; status: 'approved'|'pending'|'blocked' }>(
+          `select role, status from public.memberships where user_id=$1 and organization_id=$2 limit 1`,
           [userId, organizationId]
         );
         return r.rows[0] ?? null;
       });
       const role = roleRes?.role;
+      const orgStatus = roleRes?.status;
       if (role !== 'owner' && role !== 'admin') {
         return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      }
+      if (orgStatus !== 'approved') {
+        return NextResponse.json({ ok: false, error: "org_not_approved" }, { status: 403 });
       }
 
       // Prevalider at domenet svarer (HEAD, fallback GET)
@@ -51,14 +55,33 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "domain_unreachable" }, { status: 400 });
       }
 
-      // RLS-sikkert oppdatering
-      const updated = await withGUC(client, { "request.user_id": userId, "request.org_id": organizationId }, async () => {
-        const r = await client.query<{ orgnr: string | null }>(
-          `update public.organizations set homepage_domain=$1, updated_at=now() where id=$2 returning orgnr`,
-          [domain, organizationId]
+      // RLS-sikkert oppdatering (krever org_role=admin/owner, org_status=approved, mfa=on)
+      let updated: { orgnr: string | null } | null = null;
+      try {
+        updated = await withGUC(
+          client,
+          {
+            "request.user_id": userId,
+            "request.org_id": organizationId,
+            "request.org_role": role,
+            "request.org_status": orgStatus,
+            "request.mfa": 'on',
+          } as any,
+          async () => {
+            const r = await client.query<{ orgnr: string | null }>(
+              `update public.organizations set homepage_domain=$1, updated_at=now() where id=$2 returning orgnr`,
+              [domain, organizationId]
+            );
+            return r.rows[0] ?? null;
+          }
         );
-        return r.rows[0] ?? null;
-      });
+      } catch (e: any) {
+        const msg = String(e?.message || e);
+        if (msg.includes('row-level security') || msg.includes('RLS')) {
+          return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+        }
+        throw e;
+      }
 
       const orgnr = updated?.orgnr ?? null;
       if (orgnr) enrichOrganizationExternal(orgnr, client).catch(() => {});

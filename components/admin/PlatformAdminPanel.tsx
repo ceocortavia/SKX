@@ -317,6 +317,8 @@ export default function PlatformAdminPanel() {
             Velg en organisasjon for å se og oppdatere roller eller status på medlemmer.
           </p>
         </div>
+        {/* Tech-filter og CSV-eksport */}
+        <TechFilterAndExport />
         {orgsError && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             Klarte ikke å laste organisasjoner: {String(orgsError)}
@@ -340,6 +342,9 @@ export default function PlatformAdminPanel() {
               >
                 <div className="font-medium">{org.name ?? "(navn mangler)"}</div>
                 <div className="text-xs text-gray-500">{org.orgnr ?? ""}</div>
+                {org.homepage_domain && (
+                  <div className="mt-1 text-[11px] text-gray-600">{org.homepage_domain}</div>
+                )}
               </button>
             ))}
           </div>
@@ -425,6 +430,67 @@ export default function PlatformAdminPanel() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function TechFilterAndExport() {
+  const [techInput, setTechInput] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const applyFilter = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (techInput.trim()) params.set("tech", techInput.trim()); else params.delete("tech");
+    const url = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, "", url);
+    // Re-trigger SWR by full reload to keep changes minimal here
+    window.location.reload();
+  };
+
+  const exportCsv = async () => {
+    setBusy(true);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (techInput.trim()) params.set("tech", techInput.trim());
+      params.set("csv", "1");
+      const url = `/api/platform/organizations?${params.toString()}`;
+      const res = await fetch(url, { headers: { accept: "text/csv" } });
+      const text = await res.text();
+      const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "organizations.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const current = params.get("tech") ?? "";
+    setTechInput(current);
+  }, []);
+
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-gray-600">Filter på teknologier (komma-separert)</label>
+        <input
+          value={techInput}
+          onChange={(e) => setTechInput(e.target.value)}
+          placeholder="react,shopify"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none"
+        />
+      </div>
+      <button onClick={applyFilter} className="rounded-lg bg-slate-600 px-3 py-2 text-sm font-medium text-white shadow hover:bg-slate-500">
+        Filtrer
+      </button>
+      <button onClick={exportCsv} disabled={busy} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-60">
+        {busy ? "Eksporterer…" : "Eksporter CSV"}
+      </button>
     </div>
   );
 }
