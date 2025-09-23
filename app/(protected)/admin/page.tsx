@@ -283,7 +283,7 @@ function BulkRevokeMembersBtn({
   );
 }
 
-export default function AdminPage() {
+function AdminPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -808,6 +808,14 @@ export default function AdminPage() {
         </p>
       )}
     </main>
+    </Suspense>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-5xl p-6"><p>Loading…</p></main>}>
+      <AdminPageInner />
     </Suspense>
   );
 }
