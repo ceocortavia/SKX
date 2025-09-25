@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { enrichOrganizationExternal } from "@/lib/enrichmentService";
-import { requireApprovedAdmin, requireMember, getSession } from "@/server/authz";
+import { requireApprovedAdmin, requireMember, getSession } from "../../../../server/authz";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
