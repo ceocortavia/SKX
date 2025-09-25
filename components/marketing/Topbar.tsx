@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { SignedIn, SignedOut, UserButton, useClerk, useUser } from "@clerk/nextjs";
+import PlatformAdminLink from "@/components/nav/PlatformAdminLink";
 
 const nav = [
   { href: "/", label: "Hjem" },
@@ -79,6 +80,7 @@ export default function Topbar() {
               Platform-admin
             </Link>
           </SignedIn>
+          <PlatformAdminLink className="text-sm hover:text-black transition" />
           <SignedOutActionsDesktop />
           <SignedInActionsDesktop />
         </nav>
@@ -129,6 +131,7 @@ export default function Topbar() {
                   >
                     Profil
                   </Link>
+                  <PlatformAdminLink className="block px-4 py-2 text-sm text-black/80 hover:bg-black/5" />
                 </SignedIn>
               </div>
               <div className="px-4 py-3 border-t border-black/5 flex gap-2 items-center justify-between">

@@ -3,6 +3,7 @@
 import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import PlatformAdminLink from "@/components/nav/PlatformAdminLink";
 import { usePathname } from "next/navigation";
 
 export default function Topbar({ onMenu }: { onMenu: () => void }) {
@@ -30,11 +31,7 @@ export default function Topbar({ onMenu }: { onMenu: () => void }) {
         </button>
         <div className="text-sm text-slate-500 dark:text-slate-400">{centerTitle}</div>
         <div className="flex items-center gap-3">
-          {showPlatform && (
-            <Link href="/admin/platform" className="hidden sm:inline rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">
-              Platform-admin
-            </Link>
-          )}
+          <PlatformAdminLink className="hidden sm:inline rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50" />
           <SignedIn>
             <UserButton appearance={{ elements: { avatarBox: "w-8 h-8" } }} />
           </SignedIn>
