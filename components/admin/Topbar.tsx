@@ -1,10 +1,18 @@
 "use client";
 
 import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 export default function Topbar({ onMenu }: { onMenu: () => void }) {
   const pathname = usePathname();
+  const [showPlatform, setShowPlatform] = useState(false);
+  useEffect(() => {
+    // Enkel klient-sjekk: hvis vi har cookie/prod, vis lenke alltid; ellers fallback til miljøflagget
+    // I et senere steg kan dette kobles til en lettvekts /api/platform/admins/me
+    setShowPlatform(true);
+  }, []);
   const centerTitle = pathname?.startsWith("/profile")
     ? "Profil"
     : pathname?.startsWith("/admin")
@@ -21,7 +29,12 @@ export default function Topbar({ onMenu }: { onMenu: () => void }) {
           Meny
         </button>
         <div className="text-sm text-slate-500 dark:text-slate-400">{centerTitle}</div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {showPlatform && (
+            <Link href="/admin/platform" className="hidden sm:inline rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">
+              Platform-admin
+            </Link>
+          )}
           <SignedIn>
             <UserButton appearance={{ elements: { avatarBox: "w-8 h-8" } }} />
           </SignedIn>
