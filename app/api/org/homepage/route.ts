@@ -1,48 +1,70 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
 import { enrichOrganizationExternal } from "@/lib/enrichmentService";
+import { requireApprovedAdmin, requireMember, getSession } from "@/server/authz";
 
-export async function POST(req: Request) {
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+function normalizeDomain(input: string): string | null {
   try {
-    const auth = await getAuthContext(req);
-    if (!auth) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+    if (!input) return null;
+    let s = input.trim();
+    if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+    const u = new URL(s);
+    const host = (u.hostname || "").toLowerCase();
+    if (!host || host === "localhost") return null;
+    return host;
+  } catch {
+    return null;
+  }
+}
+
+async function pingHead(url: string, timeoutMs = 4000): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    const res = await fetch(url, { method: "HEAD", signal: ctrl.signal });
+    clearTimeout(t);
+    return res.ok || (res.status >= 200 && res.status < 500);
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const { orgId, userId } = await getSession(req as any);
+  await requireMember(userId, orgId);
+
+  const client = await pool.connect();
+  try {
+    const r = await client.query(
+      `select id, name as display_name, homepage_domain, tech_stack, tech_stack_updated_at, tech_stack_source from public.organizations where id=$1 limit 1`,
+      [orgId]
+    );
+    if (!r.rowCount) return NextResponse.json({ error: "org_not_found" }, { status: 404 });
+    return NextResponse.json(r.rows[0], { headers: { "Cache-Control": "no-store" } });
+  } finally {
+    client.release();
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getSession(req as any);
 
     const body = await req.json().catch(() => ({} as any));
-    const organizationId: string | undefined = body?.organization_id;
-    const homepage: string | undefined = body?.homepage;
-    if (!organizationId || !homepage) {
-      return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
-    }
+    const homepage: string | undefined = (body?.homepage || body?.url || body?.domain) as string | undefined;
+    if (!homepage) return NextResponse.json({ ok: false, error: "invalid_input" }, { status: 400 });
 
-    const url = homepage.startsWith("http") ? homepage : `https://${homepage}`;
-    let domain: string;
-    try { domain = new URL(url).hostname; } catch { return NextResponse.json({ ok: false, error: "invalid_url" }, { status: 400 }); }
+    const domain = normalizeDomain(homepage);
+    if (!domain) return NextResponse.json({ ok: false, error: "invalid_domain" }, { status: 422 });
 
     const client = await pool.connect();
     try {
-      // Finn intern user_id
-      const u = await client.query<{ id: string }>(`select id from public.users where clerk_user_id=$1 limit 1`, [auth.clerkUserId]);
-      const userId = u.rows[0]?.id;
-      if (!userId) return NextResponse.json({ ok: false, error: "user_not_found" }, { status: 400 });
-
-      // Sjekk rolle (owner/admin) + status for valgt org
-      const roleRes = await withGUC(client, { "request.user_id": userId, "request.org_id": organizationId }, async () => {
-        const r = await client.query<{ role: 'owner'|'admin'|'member'; status: 'approved'|'pending'|'blocked' }>(
-          `select role, status from public.memberships where user_id=$1 and organization_id=$2 limit 1`,
-          [userId, organizationId]
-        );
-        return r.rows[0] ?? null;
-      });
-      const role = roleRes?.role;
-      const orgStatus = roleRes?.status;
-      if (role !== 'owner' && role !== 'admin') {
-        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
-      }
-      if (orgStatus !== 'approved') {
-        return NextResponse.json({ ok: false, error: "org_not_approved" }, { status: 403 });
-      }
+      await requireApprovedAdmin(session.userId, session.orgId);
 
       // Prevalider at domenet svarer (HEAD, fallback GET)
       try {
@@ -61,16 +83,16 @@ export async function POST(req: Request) {
         updated = await withGUC(
           client,
           {
-            "request.user_id": userId,
-            "request.org_id": organizationId,
-            "request.org_role": role,
-            "request.org_status": orgStatus,
+            "request.user_id": session.userId,
+            "request.org_id": session.orgId,
+            "request.org_role": 'admin',
+            "request.org_status": 'approved',
             "request.mfa": 'on',
           } as any,
           async () => {
             const r = await client.query<{ orgnr: string | null }>(
               `update public.organizations set homepage_domain=$1, updated_at=now() where id=$2 returning orgnr`,
-              [domain, organizationId]
+              [domain, session.orgId]
             );
             return r.rows[0] ?? null;
           }
