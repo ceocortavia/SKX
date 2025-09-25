@@ -18,12 +18,6 @@ export default function Topbar() {
   const [open, setOpen] = useState(false);
   const { signOut } = useClerk();
   const { user } = useUser();
-  const superList = (process.env.NEXT_PUBLIC_SUPER_ADMINS || "ceo@cortavia.com")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  const email = (user?.primaryEmailAddress?.emailAddress || "").toLowerCase();
-  const isSuperAdmin = !!email && superList.includes(email);
 
   // Små, lesbare del-komponenter for handlinger
   const SignedOutActionsDesktop = () => (
@@ -77,14 +71,14 @@ export default function Topbar() {
               {label}
             </Link>
           ))}
-          {isSuperAdmin && (
+          <SignedIn>
             <Link
               href="/admin/platform"
               className={`text-sm hover:text-black transition ${pathname === "/admin/platform" ? "text-black" : "text-black/60"}`}
             >
               Platform-admin
             </Link>
-          )}
+          </SignedIn>
           <SignedOutActionsDesktop />
           <SignedInActionsDesktop />
         </nav>
@@ -118,7 +112,7 @@ export default function Topbar() {
                     {label}
                   </Link>
                 ))}
-                {isSuperAdmin && (
+                <SignedIn>
                   <Link
                     href="/admin/platform"
                     onClick={() => setOpen(false)}
@@ -126,7 +120,7 @@ export default function Topbar() {
                   >
                     Platform-admin
                   </Link>
-                )}
+                </SignedIn>
                 <SignedIn>
                   <Link
                     href="/profile"
