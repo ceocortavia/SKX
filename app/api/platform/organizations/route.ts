@@ -4,6 +4,17 @@ import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { ensurePlatformRoleGUC, resolvePlatformAdmin } from "@/lib/platform-admin";
 import { isQATestPlatformAdmin } from "@/server/authz";
+
+function toHeadersSync(x: any): Headers {
+  if (x && typeof x.get === 'function') return x as Headers;
+  try {
+    const h: any = typeof headers === 'function' ? (headers() as any) : (headers as any);
+    if (h && typeof h.then === 'function') return new Headers();
+    if (h && typeof h[Symbol.iterator] === 'function') return new Headers(Object.fromEntries(h as any));
+    if (h && typeof h.get === 'function') return h as Headers;
+  } catch {}
+  return new Headers();
+}
 import { withGUC } from "@/lib/withGUC";
 
 export const runtime = "nodejs";
@@ -18,7 +29,7 @@ export async function GET(req: Request) {
     const client = await pool.connect();
     try {
       let platformCtx = null as any;
-      const hh = headers();
+      const hh = toHeadersSync(headers());
       if (isQATestPlatformAdmin(hh)) {
         const email = auth.email || hh.get('x-test-clerk-email') || null;
         const clerkId = auth.clerkUserId || hh.get('x-test-clerk-user-id') || 'qa_user';
@@ -32,7 +43,9 @@ export async function GET(req: Request) {
         );
         const userId = up.rows[0]?.id ?? (await client.query<{ id: string }>(`select id from public.users where clerk_user_id=$1 limit 1`, [clerkId])).rows[0]?.id;
         platformCtx = { userId, email, role: 'super_admin', viaEnv: false, viaDb: true };
-        await ensurePlatformRoleGUC(client, platformCtx);
+        // Sett nødvendige GUC eksplisitt
+        await client.query(`select set_config('request.user_id',$1,true)`, [userId]);
+        await client.query(`select set_config('request.platform_role','super_admin',true)`);
       } else {
         platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
         if (!platformCtx || platformCtx.role !== 'super_admin') {
