@@ -52,6 +52,16 @@ export default function middleware(req: NextRequest) {
   if (p === '/api/healthz' || p === '/api/health' || p.startsWith('/_next') || p === '/favicon.ico') {
     return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
   }
+  // Early QA-bypass før Clerk (bruk TEST_BYPASS_SECRET eller fallback TEST_SEED_SECRET)
+  const bypassSecret = process.env.TEST_BYPASS_SECRET || process.env.TEST_SEED_SECRET;
+  const hdr = req.headers.get('x-test-secret');
+  if (bypassSecret && hdr && hdr === bypassSecret) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-test-bypass', '1');
+    // valgfritt signal om rolle til apier som støtter det
+    if (!requestHeaders.get('x-test-role')) requestHeaders.set('x-test-role', 'platform-admin');
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
   // clerkMiddleware krever (req: NextRequest)
   // @ts-ignore – Clerk type overloads
   return clerkMw(req as any);
