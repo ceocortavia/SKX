@@ -58,8 +58,6 @@ export default function middleware(req: NextRequest) {
   if (bypassSecret && hdr && hdr === bypassSecret) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-test-bypass', '1');
-    // valgfritt signal om rolle til apier som støtter det
-    if (!requestHeaders.get('x-test-role')) requestHeaders.set('x-test-role', 'platform-admin');
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
   // clerkMiddleware krever (req: NextRequest)
