@@ -14,6 +14,12 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  const p = req.nextUrl.pathname;
+  // Health/statikk: slipp gjennom uten auth/redirect
+  if (p === "/api/health" || p === "/api/healthz" || p.startsWith("/_next") || p === "/favicon.ico") {
+    return NextResponse.next({ headers: { "Cache-Control": "no-store" } });
+  }
+
   // Sikker test-bypass i prod med delt hemmelighet (kun ved eksplisitt header)
   const testSecret = req.headers.get('x-test-secret');
   if (testSecret && testSecret === process.env.TEST_SEED_SECRET) {
@@ -48,10 +54,7 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  matcher: [
-    "/((?!_next|.*\\..*).*)",
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
 
 
