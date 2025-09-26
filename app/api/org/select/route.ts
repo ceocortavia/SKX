@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const auth = await getAuthContext(req as any);
-  const jar = cookies();
+  const jar = await cookies();
   const cookieOrgId = jar.get("orgId")?.value || null;
 
   let orgId: string | null = cookieOrgId;
