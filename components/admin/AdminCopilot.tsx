@@ -1,16 +1,5 @@
 'use client';
 
-export default function AdminCopilot() {
-  return (
-    <div className="rounded border p-4 bg-white">
-      <div className="font-medium">Admin Copilot</div>
-      <p className="text-sm text-gray-600">Placeholder – funksjon kommer senere.</p>
-    </div>
-  );
-}
-
-"use client";
-
 import { useState } from "react";
 import CopyButton from "@/components/ui/CopyButton";
 
