@@ -19,17 +19,30 @@ export class AuthError extends Error {
   }
 }
 
-function qaHeaders(h?: Headers) {
-  return h ?? nextHeaders();
+function toHeadersSync(x: any): Headers {
+  if (x && typeof x.get === 'function') return x as Headers;
+  try {
+    const h: any = (typeof nextHeaders === 'function') ? (nextHeaders() as any) : (nextHeaders as any);
+    if (h && typeof h.then === 'function') return new Headers();
+    if (h && typeof h[Symbol.iterator] === 'function') {
+      return new Headers(Object.fromEntries(h as any));
+    }
+    if (h && typeof h.get === 'function') return h as Headers;
+  } catch {}
+  return new Headers();
 }
 
-export function isQATestBypass(h?: Headers) {
+function qaHeaders(h?: any): Headers {
+  return toHeadersSync(h);
+}
+
+export function isQATestBypass(h?: any) {
   const hh = qaHeaders(h);
   const sec = process.env.TEST_BYPASS_SECRET || process.env.TEST_SEED_SECRET || '';
   return !!sec && hh.get('x-test-bypass') === '1' && hh.get('x-test-secret') === sec;
 }
 
-export function isQATestPlatformAdmin(h?: Headers) {
+export function isQATestPlatformAdmin(h?: any) {
   const hh = qaHeaders(h);
   const role = (hh.get('x-test-role') || '').toLowerCase();
   return isQATestBypass(hh) && (role === 'platform-admin' || role.includes('platform'));
