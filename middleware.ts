@@ -53,9 +53,10 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
   }
   // Early QA-bypass før Clerk (bruk TEST_BYPASS_SECRET eller fallback TEST_SEED_SECRET)
+  const enableQa = process.env.ENABLE_QA_BYPASS === '1';
   const bypassSecret = process.env.TEST_BYPASS_SECRET || process.env.TEST_SEED_SECRET;
   const hdr = req.headers.get('x-test-secret');
-  if (bypassSecret && hdr && hdr === bypassSecret) {
+  if (enableQa && bypassSecret && hdr && hdr === bypassSecret) {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-test-bypass', '1');
     return NextResponse.next({ request: { headers: requestHeaders } });

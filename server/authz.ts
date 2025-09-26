@@ -37,6 +37,8 @@ function qaHeaders(h?: any): Headers {
 }
 
 export function isQATestBypass(h?: any) {
+  const enabled = process.env.ENABLE_QA_BYPASS === '1';
+  if (!enabled) return false;
   const hh = qaHeaders(h);
   const sec = process.env.TEST_BYPASS_SECRET || process.env.TEST_SEED_SECRET || '';
   return !!sec && hh.get('x-test-bypass') === '1' && hh.get('x-test-secret') === sec;

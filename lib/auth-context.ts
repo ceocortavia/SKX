@@ -13,8 +13,9 @@ export async function getAuthContext(req: Request): Promise<AuthContext | null> 
   const header = (name: string) => (hdrs.get ? hdrs.get(name) : hdrs.get(name));
 
   // QA-bypass før Clerk
+  const enableQa = process.env.ENABLE_QA_BYPASS === '1';
   const bypassSecret = (process.env.TEST_BYPASS_SECRET || process.env.TEST_SEED_SECRET || '').trim();
-  const hasBypass = (header('x-test-bypass') === '1') && !!bypassSecret && (header('x-test-secret') === bypassSecret);
+  const hasBypass = enableQa && (header('x-test-bypass') === '1') && !!bypassSecret && (header('x-test-secret') === bypassSecret);
   if (hasBypass) {
     const clerkUserId = header('x-test-clerk-user-id') || 'test_user';
     const email = header('x-test-clerk-email') || 'qa@test.local';
