@@ -21,23 +21,20 @@ export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   try {
-    const auth = await getAuthContext(req);
-    if (!auth) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-    }
-
     const client = await pool.connect();
     try {
-      let platformCtx = null as any;
+      let platformCtx: any = null;
+      let auth: any = null;
       const hh = toHeadersSync(headers());
+
+      // QA-bypass først: ikke kall resolvePlatformAdmin i QA-grenen
       if (isQATestBypass(hh)) {
         if (!isQATestPlatformAdmin(hh)) {
           return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
         }
-        // QA admin path
-        const email = auth.email || hh.get('x-test-clerk-email') || null;
-        const clerkId = auth.clerkUserId || hh.get('x-test-clerk-user-id') || 'qa_user';
-        // Sørg for at det finnes en user i DB for GUC-bruk
+        const email = hh.get('x-test-clerk-email') || 'qa_admin@test.local';
+        const clerkId = hh.get('x-test-clerk-user-id') || 'qa_user';
+        // Sørg for user i DB (for GUC)
         const up = await client.query<{ id: string }>(
           `insert into public.users (clerk_user_id, primary_email, full_name)
            values ($1,$2,$3)
@@ -47,10 +44,15 @@ export async function GET(req: Request) {
         );
         const userId = up.rows[0]?.id ?? (await client.query<{ id: string }>(`select id from public.users where clerk_user_id=$1 limit 1`, [clerkId])).rows[0]?.id;
         platformCtx = { userId, email, role: 'super_admin', viaEnv: false, viaDb: true };
-        // Sett nødvendige GUC eksplisitt
+        auth = { clerkUserId: clerkId, email };
         await client.query(`select set_config('request.user_id',$1,true)`, [userId]);
         await client.query(`select set_config('request.platform_role','super_admin',true)`);
       } else {
+        // Normal sti
+        auth = await getAuthContext(req);
+        if (!auth) {
+          return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+        }
         platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
         if (!platformCtx || platformCtx.role !== 'super_admin') {
           return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
@@ -66,7 +68,7 @@ export async function GET(req: Request) {
 
       const organizations = await withGUC(client, {
         "request.user_id": platformCtx.userId,
-        "request.clerk_user_id": auth.clerkUserId,
+        "request.clerk_user_id": auth?.clerkUserId ?? '',
         "request.platform_role": "super_admin",
       }, async () => {
         const values: any[] = [];
