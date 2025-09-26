@@ -1,4 +1,6 @@
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { headers as nextHeaders } from 'next/headers';
+import pool from '@/lib/db';
 
 export interface AuthContext {
   clerkUserId: string;
@@ -7,26 +9,32 @@ export interface AuthContext {
 }
 
 export async function getAuthContext(req: Request): Promise<AuthContext | null> {
-  // Sikker test-bypass i prod med delt hemmelighet
-  const testSecret = (req.headers.get('x-test-secret') || '').trim();
-  const envSecret = (process.env.TEST_SEED_SECRET || '').trim();
-  const secretMatches = !!testSecret && testSecret === envSecret;
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      // Ikke logg hemmeligheter, kun boolske indikatorer
-      console.log('auth-context test-bypass', {
-        provided: !!testSecret,
-        match: secretMatches,
-        haveEnv: !!process.env.TEST_SEED_SECRET,
-      });
-    } catch {}
-  }
-  if (secretMatches) {
-    const testUserId = req.headers.get('x-test-clerk-user-id') || '';
-    const testEmail = req.headers.get('x-test-clerk-email') || '';
-    if (testUserId && testEmail) {
-      return { clerkUserId: testUserId, email: testEmail, mfaVerified: true };
+  const hdrs = req?.headers ?? (nextHeaders() as any);
+  const header = (name: string) => (hdrs.get ? hdrs.get(name) : hdrs.get(name));
+
+  // QA-bypass før Clerk
+  const bypassSecret = (process.env.TEST_BYPASS_SECRET || process.env.TEST_SEED_SECRET || '').trim();
+  const hasBypass = (header('x-test-bypass') === '1') && !!bypassSecret && (header('x-test-secret') === bypassSecret);
+  if (hasBypass) {
+    const clerkUserId = header('x-test-clerk-user-id') || 'test_user';
+    const email = header('x-test-clerk-email') || 'qa@test.local';
+    // Valgfritt: upsert QA-bruker i users
+    if (process.env.TEST_BYPASS_UPSERT === '1') {
+      try {
+        const client = await pool.connect();
+        try {
+          await client.query(
+            `insert into public.users (clerk_user_id, primary_email, full_name)
+             values ($1,$2,$3)
+             on conflict (clerk_user_id) do nothing`,
+            [clerkUserId, email, 'QA User']
+          );
+        } finally {
+          client.release();
+        }
+      } catch {}
     }
+    return { clerkUserId, email, mfaVerified: true };
   }
 
   // Check for test bypass ONLY in development mode
@@ -34,8 +42,8 @@ export async function getAuthContext(req: Request): Promise<AuthContext | null> 
   const testBypass = isDev && process.env.TEST_AUTH_BYPASS === "1";
   
   if (testBypass) {
-    const testUserId = req.headers.get('x-test-clerk-user-id');
-    const testEmail = req.headers.get('x-test-clerk-email');
+    const testUserId = header('x-test-clerk-user-id');
+    const testEmail = header('x-test-clerk-email');
     
     if (testUserId && testEmail) {
       // Simulate MFA verification in dev mode
@@ -51,12 +59,11 @@ export async function getAuthContext(req: Request): Promise<AuthContext | null> 
   try {
     const { userId } = await auth();
     if (!userId) return null;
-    
-    // For now, return basic info - email can be fetched separately if needed
+    const u = await currentUser();
     return {
       clerkUserId: userId,
-      email: '', // Will be fetched from database
-      mfaVerified: true // Assume MFA is verified for Clerk users
+      email: u?.emailAddresses?.[0]?.emailAddress || '',
+      mfaVerified: true,
     };
   } catch (error) {
     console.error('Auth error:', error);
