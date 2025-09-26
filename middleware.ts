@@ -12,6 +12,9 @@ export default function middleware(req: NextRequest) {
 
   // 0) Diagnose & health – slipp alltid gjennom FØR Clerk
   if (p.startsWith('/api/_qa/') || p.startsWith('/api/qa/')) {
+    if (process.env.ENABLE_QA_BYPASS !== '1') {
+      return new Response('Not Found', { status: 404 });
+    }
     return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
   }
   if (p === '/api/healthz' || p === '/api/health') {
