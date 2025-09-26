@@ -2,6 +2,8 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const isPublicRoute = createRouteMatcher([
+  "/api/healthz",
+  "/api/health",
   "/",
   "/favicon.ico",
   "/robots.txt",
