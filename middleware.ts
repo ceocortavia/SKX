@@ -11,7 +11,7 @@ export default function middleware(req: NextRequest) {
   const p = req.nextUrl.pathname;
 
   // 0) Diagnose & health – slipp alltid gjennom FØR Clerk
-  if (p.startsWith('/api/_qa/')) {
+  if (p.startsWith('/api/_qa/') || p.startsWith('/api/qa/')) {
     return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
   }
   if (p === '/api/healthz' || p === '/api/health') {
