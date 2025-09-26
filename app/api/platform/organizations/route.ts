@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { ensurePlatformRoleGUC, resolvePlatformAdmin } from "@/lib/platform-admin";
-import { isQATestPlatformAdmin } from "@/server/authz";
+import { isQATestPlatformAdmin, isQATestBypass } from "@/server/authz";
 
 function toHeadersSync(x: any): Headers {
   if (x && typeof x.get === 'function') return x as Headers;
@@ -30,7 +30,11 @@ export async function GET(req: Request) {
     try {
       let platformCtx = null as any;
       const hh = toHeadersSync(headers());
-      if (isQATestPlatformAdmin(hh)) {
+      if (isQATestBypass(hh)) {
+        if (!isQATestPlatformAdmin(hh)) {
+          return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+        }
+        // QA admin path
         const email = auth.email || hh.get('x-test-clerk-email') || null;
         const clerkId = auth.clerkUserId || hh.get('x-test-clerk-user-id') || 'qa_user';
         // Sørg for at det finnes en user i DB for GUC-bruk
