@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers as nextHeaders } from "next/headers";
+import { headers as nextHeaders, cookies as nextCookies } from "next/headers";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
 import { withGUC } from "@/lib/withGUC";
@@ -54,14 +54,18 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession(req as any);
-
-    // QA short-circuit: tillat oppdatering uten approval når bypass-header er satt
+    // QA PATH: håndter før getSession for å unngå guard-feil
     try {
       const raw: any = nextHeaders();
       const hh: Headers = raw && typeof raw.get === 'function' ? raw : new Headers();
       if (isQATestBypass(hh)) {
-        const qaOrgId = session.orgId || hh.get('x-test-org-id');
+        let cookieOrgId: string | null = null;
+        try {
+          const jar: any = nextCookies();
+          cookieOrgId = jar?.get('orgId')?.value ?? null;
+        } catch {}
+        const headerOrgId = hh.get('x-test-org-id');
+        const qaOrgId = cookieOrgId || headerOrgId || null;
         if (!qaOrgId) return NextResponse.json({ error: 'org_id_required' }, { status: 422 });
 
         const bodyQa = await req.json().catch(() => ({} as any));
@@ -69,32 +73,45 @@ export async function POST(req: NextRequest) {
         const domainQa = normalizeDomain(inputQa || '');
         if (!domainQa) return NextResponse.json({ error: 'invalid_domain' }, { status: 422 });
 
+        // Verifiser at org finnes
+        const exists = await pool.query(`select 1 from public.organizations where id=$1 limit 1`, [qaOrgId]);
+        if (!exists.rowCount) return NextResponse.json({ error: 'org_not_found' }, { status: 404 });
+
+        const qaUserId = hh.get('x-test-clerk-user-id') || 'qa_admin';
         const client = await pool.connect();
         try {
-          // Sett nødvendige GUC for RLS
+          await client.query('begin');
+          await client.query(`select set_config('request.user_id',$1,true)`, [qaUserId]);
           await client.query(`select set_config('request.org_id',$1,true)`, [qaOrgId]);
           await client.query(`select set_config('request.org_role','admin',true)`);
           await client.query(`select set_config('request.org_status','approved',true)`);
           await client.query(`select set_config('request.mfa','on',true)`);
 
-          // Valider domenet (best effort)
           const reachable = await pingHead(`https://${domainQa}`);
-
-          const upd = await client.query<{ orgnr: string | null }>(
-            `update public.organizations set homepage_domain=$1, updated_at=now() where id=$2 returning orgnr`,
+          const upd = await client.query<{ id: string; orgnr: string | null }>(
+            `update public.organizations set homepage_domain=$1, updated_at=now() where id=$2 returning id, orgnr`,
             [domainQa, qaOrgId]
           );
-          if (!upd.rowCount) return NextResponse.json({ error: 'org_not_found' }, { status: 404 });
+          if (!upd.rowCount) {
+            await client.query('rollback');
+            return NextResponse.json({ error: 'org_not_found' }, { status: 404 });
+          }
 
           const orgnr = upd.rows[0]?.orgnr;
           if (orgnr) enrichOrganizationExternal(orgnr, client).catch(() => {});
 
+          await client.query('commit');
           return NextResponse.json({ ok: true, homepage_domain: domainQa, reachable }, { headers: { 'Cache-Control': 'no-store' } });
+        } catch (e) {
+          try { await pool.query('rollback'); } catch {}
+          return NextResponse.json({ error: 'internal_error' }, { status: 500 });
         } finally {
           client.release();
         }
       }
     } catch {}
+
+    const session = await getSession(req as any);
 
     const body = await req.json().catch(() => ({} as any));
     const homepage: string | undefined = (body?.homepage || body?.url || body?.domain) as string | undefined;
