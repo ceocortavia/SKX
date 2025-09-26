@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Set HttpOnly cookie
-    const jar = cookies();
+    const jar = await cookies();
     jar.set("orgId", resolvedOrgId, {
       httpOnly: true,
       sameSite: "lax",
