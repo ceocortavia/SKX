@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { isQATestPlatformAdmin } from '@/server/authz';
 
 export type PlatformRole = 'super_admin' | 'none';
 
@@ -27,6 +28,18 @@ export async function resolvePlatformAdmin(
   clerkUserId: string,
   fallbackEmail: string | null | undefined = null
 ): Promise<PlatformAdminContext | null> {
+  // QA short-circuit: dersom header signaliserer platform-admin, returner super_admin uten DB-krav
+  try {
+    if (isQATestPlatformAdmin()) {
+      // Finn (eller fake) user for GUC. Vi forsøker å slå opp, men lar resten være best-effort.
+      const res = await client.query<{ id: string }>(
+        `select id from public.users where clerk_user_id = $1 limit 1`,
+        [clerkUserId]
+      );
+      const userId = res.rows[0]?.id || '00000000-0000-4000-8000-000000000000';
+      return { userId, email: fallbackEmail ?? null, role: 'super_admin', viaEnv: false, viaDb: true };
+    }
+  } catch {}
   const res = await client.query<{ id: string; primary_email: string | null }>(
     `select id, primary_email
        from public.users
