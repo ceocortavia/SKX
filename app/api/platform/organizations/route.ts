@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import pool from "@/lib/db";
 import { getAuthContext } from "@/lib/auth-context";
-import { ensurePlatformRoleGUC, resolvePlatformAdmin, requirePlatformSuper } from "@/lib/platform-admin";
+import { ensurePlatformRoleGUC, resolvePlatformAdmin } from "@/lib/platform-admin";
+import { isQATestPlatformAdmin } from "@/server/authz";
 import { withGUC } from "@/lib/withGUC";
 
 export const runtime = "nodejs";
@@ -15,11 +17,29 @@ export async function GET(req: Request) {
 
     const client = await pool.connect();
     try {
-      const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      if (!platformCtx || platformCtx.role !== 'super_admin') {
-        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      let platformCtx = null as any;
+      const hh = headers();
+      if (isQATestPlatformAdmin(hh)) {
+        const email = auth.email || hh.get('x-test-clerk-email') || null;
+        const clerkId = auth.clerkUserId || hh.get('x-test-clerk-user-id') || 'qa_user';
+        // Sørg for at det finnes en user i DB for GUC-bruk
+        const up = await client.query<{ id: string }>(
+          `insert into public.users (clerk_user_id, primary_email, full_name)
+           values ($1,$2,$3)
+           on conflict (clerk_user_id) do update set primary_email = coalesce(public.users.primary_email, excluded.primary_email)
+           returning id`,
+          [clerkId, email, 'QA Admin']
+        );
+        const userId = up.rows[0]?.id ?? (await client.query<{ id: string }>(`select id from public.users where clerk_user_id=$1 limit 1`, [clerkId])).rows[0]?.id;
+        platformCtx = { userId, email, role: 'super_admin', viaEnv: false, viaDb: true };
+        await ensurePlatformRoleGUC(client, platformCtx);
+      } else {
+        platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
+        if (!platformCtx || platformCtx.role !== 'super_admin') {
+          return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+        }
+        await ensurePlatformRoleGUC(client, platformCtx);
       }
-      await ensurePlatformRoleGUC(client, platformCtx);
 
       const url = new URL(req.url);
       const search = url.searchParams.get("search")?.trim() ?? "";
