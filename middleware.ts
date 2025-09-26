@@ -37,7 +37,7 @@ export default function middleware(req: NextRequest) {
 
 // ✅ Kun API/TRPC – vi rører ikke siderute-auth
 export const config = {
-  matcher: ['/api/:path*', '/trpc/:path*'],
+  matcher: ['/trpc/:path*'],
 };
 
 
