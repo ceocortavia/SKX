@@ -1,0 +1,78 @@
+name: Preview QA (enable bypass, smoke, disable)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+
+jobs:
+  qa-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # Optional if your project requires them; vercel pull usually discovers these
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      QA_SECRET: ${{ secrets.TEST_BYPASS_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Vercel pull (preview)
+        run: vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+
+      - name: Enable QA bypass in preview env
+        run: |
+          printf "1" | vercel env add ENABLE_QA_BYPASS preview --token "$VERCEL_TOKEN"
+          # Ensure TEST_BYPASS_SECRET exists in preview as well
+          if ! vercel env ls --token "$VERCEL_TOKEN" | grep -q '^TEST_BYPASS_SECRET\s\+Preview'; then
+            printf "%s" "$QA_SECRET" | vercel env add TEST_BYPASS_SECRET preview --token "$VERCEL_TOKEN"
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy preview (prebuilt)
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --token "$VERCEL_TOKEN" | tail -n1)
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Smoke tests (QA on: diagnose + admin/non-admin)
+        env:
+          BASE: ${{ steps.deploy.outputs.url }}
+        run: |
+          echo "Base: $BASE"
+          # diagnose
+          curl -sS "$BASE/api/qa/bypass" | grep '"enabled":true'
+          # admin 200
+          curl -si \
+            -H "x-test-secret: $QA_SECRET" \
+            -H "x-test-bypass: 1" \
+            -H "x-test-role: platform-admin" \
+            -H "x-test-clerk-user-id: qa_admin" \
+            -H "x-test-clerk-email: qa_admin@test.local" \
+            "$BASE/api/platform/organizations?tech=react" | head -n 20 | grep -E "^HTTP/[0-9.]+ 200"
+          # non-admin 403
+          curl -si \
+            -H "x-test-secret: $QA_SECRET" \
+            -H "x-test-bypass: 1" \
+            "$BASE/api/platform/organizations?tech=react" | head -n 20 | grep -E "^HTTP/[0-9.]+ 403"
+
+      - name: Disable QA bypass in preview env
+        if: always()
+        run: |
+          # revert flag for preview for subsequent runs
+          vercel env rm ENABLE_QA_BYPASS preview --yes --token "$VERCEL_TOKEN" || true
+          printf "0" | vercel env add ENABLE_QA_BYPASS preview --token "$VERCEL_TOKEN"
+
+
