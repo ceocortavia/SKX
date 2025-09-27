@@ -65,7 +65,7 @@ async function getDetails(): Promise<OrgDetails> {
     });
 
     if (!orgId) {
-      const jar = cookies();
+      const jar = await cookies();
       orgId = jar.get("orgId")?.value || null;
     }
     if (!orgId) return null;
@@ -140,7 +140,7 @@ async function getDetails(): Promise<OrgDetails> {
 }
 
 export default async function BrregPage() {
-  const _h = headers(); const _c = cookies();
+  const _h = headers(); const _c = await cookies();
   try {
     const org = await getDetails();
     const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('nb-NO') : '—';
