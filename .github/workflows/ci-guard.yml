@@ -1,0 +1,40 @@
+name: CI Guard (typecheck/lint/build with flags OFF)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_ENABLE_CSV_ASSISTANT: '0'
+      ENABLE_QA_BYPASS: '0'
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build (flags OFF)
+        run: npm run build
+
+
