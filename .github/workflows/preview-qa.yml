@@ -5,16 +5,24 @@ on:
     types: [opened, synchronize, reopened]
     branches: [ main ]
 
+concurrency:
+  group: preview-qa-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   qa-preview:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       # Optional if your project requires them; vercel pull usually discovers these
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       QA_SECRET: ${{ secrets.TEST_BYPASS_SECRET }}
+      TEST_BYPASS_SECRET: ${{ secrets.TEST_BYPASS_SECRET }}
+      # Om jobben midlertidig skal skru på QA-bypass i preview:
+      ENABLE_QA_BYPASS: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,14 +36,14 @@ jobs:
         run: npm ci
 
       - name: Vercel pull (preview)
-        run: vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+        run: npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
 
       - name: Enable QA bypass in preview env
         run: |
-          printf "1" | vercel env add ENABLE_QA_BYPASS preview --token "$VERCEL_TOKEN"
+          printf "1" | npx vercel env add ENABLE_QA_BYPASS preview --token "$VERCEL_TOKEN"
           # Ensure TEST_BYPASS_SECRET exists in preview as well
-          if ! vercel env ls --token "$VERCEL_TOKEN" | grep -q '^TEST_BYPASS_SECRET\s\+Preview'; then
-            printf "%s" "$QA_SECRET" | vercel env add TEST_BYPASS_SECRET preview --token "$VERCEL_TOKEN"
+          if ! npx vercel env ls --token "$VERCEL_TOKEN" | grep -q '^TEST_BYPASS_SECRET\s\+Preview'; then
+            printf "%s" "$QA_SECRET" | npx vercel env add TEST_BYPASS_SECRET preview --token "$VERCEL_TOKEN"
           fi
 
       - name: Build
@@ -44,10 +52,10 @@ jobs:
       - name: Deploy preview (prebuilt)
         id: deploy
         run: |
-          URL=$(vercel deploy --prebuilt --token "$VERCEL_TOKEN" | tail -n1)
+          URL=$(npx vercel deploy --prebuilt --token "$VERCEL_TOKEN" | tail -n1)
           echo "url=$URL" >> $GITHUB_OUTPUT
 
-      - name: Smoke tests (QA on: diagnose + admin/non-admin)
+      - name: "Smoke tests (QA on: diagnose + admin/non-admin)"
         env:
           BASE: ${{ steps.deploy.outputs.url }}
         run: |
@@ -72,7 +80,8 @@ jobs:
         if: always()
         run: |
           # revert flag for preview for subsequent runs
-          vercel env rm ENABLE_QA_BYPASS preview --yes --token "$VERCEL_TOKEN" || true
-          printf "0" | vercel env add ENABLE_QA_BYPASS preview --token "$VERCEL_TOKEN"
+          npx vercel env rm ENABLE_QA_BYPASS preview --yes --token "$VERCEL_TOKEN" || true
+          printf "0" | npx vercel env add ENABLE_QA_BYPASS preview --token "$VERCEL_TOKEN"
+
 
 
