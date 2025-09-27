@@ -31,7 +31,9 @@ export async function GET(req: Request) {
     const client = await pool.connect();
     try {
       const ctx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      requirePlatformSuper(ctx);
+      if (!ctx || ctx.role !== 'super_admin') {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      }
       await ensurePlatformRoleGUC(client, ctx);
 
       const [dbAdmins, envAdmins] = await Promise.all([
@@ -93,7 +95,9 @@ export async function POST(req: Request) {
     const client = await pool.connect();
     try {
       const ctx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      requirePlatformSuper(ctx);
+      if (!ctx || ctx.role !== 'super_admin') {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      }
       await ensurePlatformRoleGUC(client, ctx);
 
       const result = await withGUC(client, { "request.platform_role": "super_admin" }, async () => {
@@ -116,7 +120,7 @@ export async function POST(req: Request) {
           `insert into public.platform_admins (user_id, granted_by)
              values ($1, $2)
              returning user_id, granted_at`,
-          [user.id, ctx?.userId ?? null]
+          [user.id, ctx.userId]
         );
         return { ok: true as const, userId: ins.rows[0].user_id, grantedAt: ins.rows[0].granted_at };
       });
@@ -160,7 +164,9 @@ export async function DELETE(req: Request) {
     const client = await pool.connect();
     try {
       const ctx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      requirePlatformSuper(ctx);
+      if (!ctx || ctx.role !== 'super_admin') {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      }
       await ensurePlatformRoleGUC(client, ctx);
 
       const deleted = await withGUC(client, { "request.platform_role": "super_admin" }, async () => {

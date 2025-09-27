@@ -94,4 +94,56 @@ on conflict (id) do update
       metadata = excluded.metadata,
       updated_at = now();
 
+-- 5. Policies og versjoner (OCG + infosperre)
+with org as (
+  select id from public.organizations where orgnr = '920123456' limit 1
+)
+insert into public.policies (organization_id, key, title, description)
+select org.id, entries.key, entries.title, entries.description
+from org,
+     (values
+       ('OCG_GENERIC', 'Oppstart Compliance Guard', 'Standard OCG-prosedyre for nye saker'),
+       ('INFO_WALL', 'Informasjonssperre', 'Prosedyre for informasjons-sperre og attestasjonskrav')
+     ) as entries(key, title, description)
+on conflict (organization_id, key) do update
+  set title = excluded.title,
+      description = excluded.description,
+      updated_at = now();
+
+with cte as (
+  select p.id, p.organization_id, v.version
+  from public.policies p
+  left join public.policy_versions v on v.policy_id = p.id and v.version = 1
+  where p.organization_id = (select id from public.organizations where orgnr = '920123456' limit 1)
+)
+insert into public.policy_versions (policy_id, version, body_md)
+select cte.id, 1, case p.key
+  when 'OCG_GENERIC' then '# OCG Prosedyre\n- Samle klientdata\n- Fylle compliance-sjekklisten.'
+  else '# Infosperre\n- Bekreft hvem som får tilgang\n- Loggfør sperredetaljer.'
+end
+from cte
+join public.policies p on p.id = cte.id
+where cte.version is null
+on conflict (policy_id, version) do nothing;
+
+-- 6. Person-lisenser (eksempel)
+with org as (
+  select id from public.organizations where orgnr = '920123456' limit 1
+), users as (
+  select id, primary_email from public.users where primary_email in ('advokat1@lexnord.test','advokat2@lexnord.test')
+)
+insert into public.person_licenses (organization_id, user_id, jurisdiction, license_id, expires_on, status)
+select (select id from org), u.id, entries.jurisdiction, entries.license_id, entries.expires_on, 'active'
+from users u
+join (values
+  ('advokat1@lexnord.test','NO','ADV-123','2026-12-31'::date),
+  ('advokat2@lexnord.test','NO','ADV-456','2025-06-30'::date)
+) as entries(email, jurisdiction, license_id, expires_on)
+  on u.primary_email = entries.email
+on conflict (organization_id, user_id, jurisdiction) do update
+  set license_id = excluded.license_id,
+      expires_on = excluded.expires_on,
+      status = excluded.status,
+      updated_at = now();
+
 commit;

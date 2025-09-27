@@ -58,12 +58,38 @@ export async function GET(req: Request) {
         }
       }
 
+      const organizations = await withGUC(client, { "request.user_id": internalUserId }, async () => {
+        const r = await client.query<{
+          id: string;
+          orgnr: string | null;
+          name: string | null;
+          role: "owner" | "admin" | "member";
+          status: "approved" | "pending";
+        }>(
+          `select o.id, o.orgnr, o.name, m.role, m.status
+             from public.memberships m
+             join public.organizations o on o.id = m.organization_id
+            where m.user_id = $1
+            order by m.created_at asc`,
+          [internalUserId]
+        );
+        return r.rows;
+      });
+
+      if (!organization && organizations.length) {
+        organization = {
+          id: organizations[0].id,
+          orgnr: organizations[0].orgnr,
+          name: organizations[0].name,
+        };
+      }
+
       if (!organization) {
-        return NextResponse.json({ ok: true, organization: null, membership: null, mfa: false, permissions: [] }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json({ ok: true, organization: null, membership: null, organizations: [], mfa: false, permissions: [] }, { headers: { "Cache-Control": "no-store" } });
       }
 
       // Hent membership i valgt org under RLS (sett også request.org_id)
-      const membership = await withGUC(client, {
+      let membership = await withGUC(client, {
         "request.user_id": internalUserId,
         "request.org_id": organization.id,
       }, async () => {
@@ -73,6 +99,13 @@ export async function GET(req: Request) {
         );
         return r.rows[0] ?? null;
       });
+
+      if (!membership) {
+        const fallback = organizations.find((org) => org.id === organization!.id);
+        if (fallback) {
+          membership = { role: fallback.role, status: fallback.status };
+        }
+      }
 
       const isAdminLike = membership?.role === "owner" || membership?.role === "admin";
       const isPending = membership?.status === "pending";
@@ -88,6 +121,7 @@ export async function GET(req: Request) {
         ok: true,
         organization,
         membership,
+        organizations,
         mfa: false,
         permissions,
       }, { headers: { "Cache-Control": "no-store" } });

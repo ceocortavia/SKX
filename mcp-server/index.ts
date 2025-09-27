@@ -1,58 +1,145 @@
+import readline from 'readline';
+import { tools, toolsByName } from './tools';
 
-import express from 'express';
-import crypto from 'crypto';
-import { analyzeProject } from './analyzer';
+interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  id?: number | string;
+  method: string;
+  params?: any;
+}
 
-const app = express();
-const PORT = 3001;
+interface JsonRpcResponse {
+  jsonrpc: '2.0';
+  id: number | string | null;
+  result?: any;
+  error?: { code: number; message: string; data?: any };
+}
 
-// IMPORTANT: Replace 'supersecret' with a real secret and store it securely (e.g., in environment variables)
-const GITHUB_WEBHOOK_SECRET = 'supersecret';
-
-// Middleware to validate the webhook signature
-const verifySignature = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const signature = req.headers['x-hub-signature-256'] as string;
-  if (!signature) {
-    return res.status(401).send('Signature required');
-  }
-
-  const hmac = crypto.createHmac('sha256', GITHUB_WEBHOOK_SECRET);
-  const digest = 'sha256=' + hmac.update(JSON.stringify(req.body)).digest('hex');
-
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
-    return res.status(401).send('Invalid signature');
-  }
-
-  next();
+const serverInfo = {
+  name: 'skx-mcp-server',
+  version: '0.1.0',
 };
 
-app.use(express.json());
+function sendResponse(response: JsonRpcResponse) {
+  process.stdout.write(`${JSON.stringify(response)}\n`);
+}
 
-app.get('/ping', (req, res) => {
-  res.send('pong');
-});
+function sendError(id: number | string | null, code: number, message: string, data?: any) {
+  sendResponse({
+    jsonrpc: '2.0',
+    id,
+    error: { code, message, data },
+  });
+}
 
-app.post('/webhook/github', (req, res) => {
-  // We can add signature verification later for security
-  console.log('Webhook received!');
-  
-  const eventType = req.headers['x-github-event'] as string;
-  console.log(`Event type: ${eventType}`);
-
-  if (eventType === 'push') {
-    console.log('Push event detected. Starting project analysis...');
-    // The project to analyze is the root directory
-    analyzeProject('.').then(analysisResult => {
-      console.log('Analysis complete.');
-      // In a real application, we would store or process this result.
-    }).catch(err => {
-      console.error('Analysis failed.');
+async function handleCallTool(id: number | string, params: any) {
+  const name = params?.name;
+  if (typeof name !== 'string' || !name) {
+    return sendError(id, -32602, 'Tool name is required');
+  }
+  const tool = toolsByName.get(name);
+  if (!tool) {
+    return sendError(id, -32601, `Unknown tool: ${name}`);
+  }
+  let args: any = params?.arguments ?? {};
+  if (typeof args === 'string') {
+    try {
+      args = JSON.parse(args);
+    } catch (error) {
+      return sendError(id, -32602, 'Failed to parse arguments JSON', { error: String(error) });
+    }
+  }
+  try {
+    const result = await tool.handler(args ?? {});
+    sendResponse({
+      jsonrpc: '2.0',
+      id,
+      result: {
+        content: [
+          {
+            type: 'json',
+            data: result,
+          },
+        ],
+      },
     });
+  } catch (error) {
+    sendError(id, -32000, (error as Error)?.message ?? 'Tool execution failed');
+  }
+}
+
+async function handleRequest(request: JsonRpcRequest) {
+  const { id, method, params } = request;
+  if (method === 'initialize') {
+    sendResponse({
+      jsonrpc: '2.0',
+      id: id ?? null,
+      result: {
+        capabilities: {
+          tools: {},
+        },
+        serverInfo,
+      },
+    });
+    return;
   }
 
-  res.status(200).send('Webhook processed');
-});
+  if (method === 'ping') {
+    sendResponse({ jsonrpc: '2.0', id: id ?? null, result: { ok: true } });
+    return;
+  }
 
-app.listen(PORT, () => {
-  console.log(`Model Context Provider server listening on http://localhost:${PORT}`);
-});
+  if (method === 'list_tools') {
+    sendResponse({
+      jsonrpc: '2.0',
+      id: id ?? null,
+      result: {
+        tools: tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        })),
+      },
+    });
+    return;
+  }
+
+  if (method === 'call_tool') {
+    if (id === undefined || id === null) {
+      sendError(null, -32600, 'call_tool requires an id');
+      return;
+    }
+    await handleCallTool(id, params);
+    return;
+  }
+
+  if (id !== undefined) {
+    sendError(id, -32601, `Unknown method: ${method}`);
+  }
+}
+
+function startServer() {
+  const rl = readline.createInterface({ input: process.stdin });
+  rl.on('line', (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let message: JsonRpcRequest;
+    try {
+      message = JSON.parse(trimmed);
+    } catch (error) {
+      sendError(null, -32700, 'Failed to parse JSON', { input: trimmed });
+      return;
+    }
+
+    handleRequest(message).catch((err) => {
+      const id = message.id ?? null;
+      sendError(id, -32000, 'Internal error', { error: (err as Error)?.message });
+    });
+  });
+
+  rl.on('close', () => {
+    process.exit(0);
+  });
+}
+
+startServer();

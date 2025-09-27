@@ -48,3 +48,6 @@ H5="x-test-clerk-email: qa_admin@test.local"
 ## Slå av QA i prod
 - Sett ENABLE_QA_BYPASS=0 og/eller roter TEST_BYPASS_SECRET.
 - Healthz beholdes public.
+
+
+

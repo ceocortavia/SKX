@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 
+const lexnordEnabled = process.env.NEXT_PUBLIC_LEXNORD_PANEL === "1";
+
 export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <>
@@ -17,10 +19,12 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         <div className="mb-6 text-lg font-semibold">Skillexia</div>
         <nav className="flex flex-col gap-1">
           <NavItem href="/profile" label="Profil" />
-          <NavItem href="/members" label="Medlemmer" />
-          <NavItem href="/invitations" label="Invitasjoner" />
-          <NavItem href="/audit" label="Audit" />
-          <NavItem href="/analytics" label="Analytics" />
+          <NavItem href="/admin?tab=members" label="Medlemmer" />
+          <NavItem href="/admin?tab=invitations" label="Invitasjoner" />
+          <NavItem href="/admin?tab=audit" label="Audit" />
+          <NavItem href="/admin?tab=analytics" label="Analytics" />
+          <NavItem href="/admin?tab=copilot" label="Copilot" />
+          {lexnordEnabled ? <NavItem href="/lexnord" label="LexNord" /> : null}
           <NavItem href="/admin/platform" label="Platform-admin" />
         </nav>
       </aside>
@@ -38,4 +42,3 @@ function NavItem({ href, label }: { href: string; label: string }) {
     </Link>
   );
 }
-

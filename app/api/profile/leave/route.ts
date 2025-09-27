@@ -34,19 +34,44 @@ export async function POST(req: Request) {
         `select role from public.memberships where user_id = nullif(current_setting('request.user_id', true),'')::uuid and organization_id = nullif(current_setting('request.org_id', true),'')::uuid`
       );
       if (!roleRes.rowCount) return { canLeave: false as const, reason: "not_member" as const };
-      if (roleRes.rows[0].role === "owner") return { canLeave: false as const, reason: "owner_cannot_leave" as const };
+      if (roleRes.rows[0].role === "owner") {
+        const otherOwners = await client.query(
+          `select 1
+             from public.memberships
+            where organization_id = nullif(current_setting('request.org_id', true),'')::uuid
+              and role = 'owner'
+              and status = 'approved'
+              and user_id <> nullif(current_setting('request.user_id', true),'')::uuid
+            limit 1`
+        );
+        if (!otherOwners.rowCount) {
+          return { canLeave: false as const, reason: "last_owner" as const };
+        }
+      }
+
+      try {
+        await client.query(
+          `delete from public.memberships where user_id = nullif(current_setting('request.user_id', true),'')::uuid and organization_id = nullif(current_setting('request.org_id', true),'')::uuid`
+        );
+      } catch (error: any) {
+        const message = String(error?.message || "");
+        if (message.includes("last_owner") || message.includes("owner")) {
+          return { canLeave: false as const, reason: "last_owner" as const };
+        }
+        throw error;
+      }
 
       await client.query(
-        `delete from public.memberships where user_id = nullif(current_setting('request.user_id', true),'')::uuid and organization_id = nullif(current_setting('request.org_id', true),'')::uuid`
-      );
-      await client.query(
-        `update public.user_org_selection set organization_id = null where user_id = nullif(current_setting('request.user_id', true),'')::uuid and organization_id = nullif(current_setting('request.org_id', true),'')::uuid`
+        `update public.user_org_selection set organization_id = null, orgnr = null, org_name = null
+          where user_id = nullif(current_setting('request.user_id', true),'')::uuid
+            and organization_id = nullif(current_setting('request.org_id', true),'')::uuid`
       );
       return { canLeave: true as const };
     });
 
     if (!result.canLeave) {
-      return NextResponse.json({ ok: false, error: "invalid_operation", reason: result.reason }, { status: 400 });
+      const status = result.reason === "last_owner" ? 409 : 400;
+      return NextResponse.json({ ok: false, error: "invalid_operation", reason: result.reason }, { status });
     }
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -55,5 +80,4 @@ export async function POST(req: Request) {
     client.release();
   }
 }
-
 

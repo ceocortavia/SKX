@@ -34,16 +34,13 @@ export async function GET(req: Request) {
     const client = await pool.connect();
     try {
       const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      try {
-        requirePlatformSuper(platformCtx);
-      } catch (error: any) {
-        const status = error?.statusCode ?? 403;
-        return NextResponse.json({ ok: false, error: "forbidden" }, { status });
+      if (!platformCtx || platformCtx.role !== 'super_admin') {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
       }
       await ensurePlatformRoleGUC(client, platformCtx);
 
       const members = await withGUC(client, {
-        "request.user_id": platformCtx!.userId,
+        "request.user_id": platformCtx.userId,
         "request.clerk_user_id": auth.clerkUserId,
         "request.platform_role": "super_admin",
       }, async () => {
@@ -122,16 +119,13 @@ export async function PATCH(req: Request) {
     const client = await pool.connect();
     try {
       const platformCtx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      try {
-        requirePlatformSuper(platformCtx);
-      } catch (error: any) {
-        const statusCode = error?.statusCode ?? 403;
-        return NextResponse.json({ ok: false, error: "forbidden" }, { status: statusCode });
+      if (!platformCtx || platformCtx.role !== 'super_admin') {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
       }
       await ensurePlatformRoleGUC(client, platformCtx);
 
       const updated = await withGUC(client, {
-        "request.user_id": platformCtx!.userId,
+        "request.user_id": platformCtx.userId,
         "request.clerk_user_id": auth.clerkUserId,
         "request.platform_role": "super_admin",
       }, async () => {

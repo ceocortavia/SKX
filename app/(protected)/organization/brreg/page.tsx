@@ -143,6 +143,18 @@ export default async function BrregPage() {
   const _h = headers(); const _c = await cookies();
   try {
     const org = await getDetails();
+    console.log('BRREG page orgnr', org?.orgnr);
+    const orgnrClean = (org?.orgnr || '').replace(/\D/g, '');
+    if (!orgnrClean || orgnrClean.length !== 9) {
+      return (
+        <div className="p-6">
+          <h2 className="text-lg font-semibold">Mangler organisasjonsnummer</h2>
+          <p className="text-sm text-muted-foreground">
+            Velg/oppdater organisasjonen på profilsiden først.
+          </p>
+        </div>
+      );
+    }
     const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('nb-NO') : '—';
     const fmtText = (s: string | null) => s && s.trim() ? s : '—';
     const fmtNumber = (n: number | null) => typeof n === 'number' ? n.toLocaleString('nb-NO') : '—';

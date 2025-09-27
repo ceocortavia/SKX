@@ -16,7 +16,9 @@ export async function GET(req: Request) {
     const client = await pool.connect();
     try {
       const ctx = await resolvePlatformAdmin(client, auth.clerkUserId, auth.email);
-      requirePlatformSuper(ctx);
+      if (!ctx || ctx.role !== 'super_admin') {
+        return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      }
       await ensurePlatformRoleGUC(client, ctx);
 
       const stats = await withGUC(client, { "request.platform_role": "super_admin" }, async () => {
