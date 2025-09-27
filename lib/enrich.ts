@@ -19,6 +19,29 @@ function isTruthyEnv(value: string | undefined): boolean {
   return v === '1' || v === 'true' || v === 'yes';
 }
 
+const BRREG_OPEN_BASE = 'https://data.brreg.no/enhetsregisteret/api';
+
+type FetchJsonResult = { ok: boolean; status: number; ms: number; json: any };
+
+async function fetchJSON(url: string, init: RequestInit = {}, timeoutMs = 7000): Promise<FetchJsonResult> {
+  const controller = new AbortController();
+  const startedAt = Date.now();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' as RequestCache });
+    const text = await res.text();
+    let json: any;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = { _raw: text?.slice(0, 500) };
+    }
+    return { ok: res.ok, status: res.status, ms: Date.now() - startedAt, json };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchBrreg(orgnr: string): Promise<Partial<EnrichedOrg> | null> {
   if (isTruthyEnv(process.env.MOCK_BRREG)) {
     return {
@@ -33,12 +56,20 @@ async function fetchBrreg(orgnr: string): Promise<Partial<EnrichedOrg> | null> {
     };
   }
   try {
-    const res = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`, {
-      headers: { accept: 'application/json' },
-      cache: 'no-store'
+    const mode = process.env.BRREG_MODE || 'open';
+    // Authorized mode kan legges til senere; vi faller uansett tilbake til åpent API
+    if (mode !== 'open') {
+      console.warn('[enrich.brreg] BRREG_MODE set to', mode, '— using open fallback');
+    }
+
+    const r = await fetchJSON(`${BRREG_OPEN_BASE}/enheter/${orgnr}`, {
+      headers: { accept: 'application/json' }
     });
-    if (!res.ok) return null;
-    const data: any = await res.json();
+    if (!r.ok) {
+      console.warn('[enrich.brreg] open fetch failed', { status: r.status, ms: r.ms, orgnr });
+      return null;
+    }
+    const data: any = r.json;
     const navn = data?.navn ?? null;
     const orgForm = data?.organisasjonsform?.kode ?? null;
     const regdt = data?.registreringsdatoEnhetsregisteret || data?.registreringsdatoEnhetsregisteret?.dato || null;
@@ -59,8 +90,8 @@ async function fetchBrreg(orgnr: string): Promise<Partial<EnrichedOrg> | null> {
       industry_code: nace,
       address: addr
     };
-  } catch (e) {
-    console.error('[enrich.brreg]', e);
+  } catch (e: any) {
+    console.error('[enrich.brreg] exception', { err: String(e?.message || e), orgnr });
     return null;
   }
 }
@@ -136,6 +167,9 @@ export async function enrichOrganizationData(orgnr: string, client: PoolClient):
     ]
   );
 }
+
+
+
 
 
 
