@@ -6,12 +6,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "clean": "rm -rf .next node_modules/.cache .vercel/cache",
     "test": "echo \"No tests specified\" && exit 0",
+    "test:mcp": "node --test --loader ts-node/esm mcp-server/tests/**/*.test.ts",
     "start:mcp": "ts-node mcp-server/index.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "type-check": "tsc --noEmit",
     "db:seed": "psql \"$DATABASE_URL_UNPOOLED\" -v ON_ERROR_STOP=1 -f db/tests/local_seed_min.sql"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
     "wappalyzer": "^6.10.48",
