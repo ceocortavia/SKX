@@ -140,12 +140,13 @@ async function getDetails(): Promise<OrgDetails> {
   }
 }
 
-export default async function BrregPage({ searchParams }: { searchParams?: Record<string, string> }) {
+export default async function BrregPage({ searchParams }: { searchParams?: Promise<Record<string, string>> | Record<string, string> }) {
   const _h = headers(); const _c = await cookies();
   try {
     const org = await getDetails();
     console.log('BRREG page orgnr', org?.orgnr);
-    const queryOrgnr = (searchParams?.orgnr || '').replace(/\D/g, '');
+    const sp = searchParams && typeof (searchParams as any).then === 'function' ? await (searchParams as any) : (searchParams as any || {});
+    const queryOrgnr = (sp?.orgnr || '').replace(/\D/g, '');
     const orgnrClean = (queryOrgnr || org?.orgnr || '').replace(/\D/g, '');
     if (!orgnrClean || orgnrClean.length !== 9) {
       return (
