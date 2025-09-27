@@ -1,12 +1,15 @@
-import { cookies } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { withGUC } from "@/lib/withGUC";
 import JsonViewer from "@/components/ui/JsonViewer";
 import EnrichNowButton from "@/components/ui/EnrichNowButton";
 import HomepageEditor from "@/components/ui/HomepageEditor";
+import BrregSuggestionsSection from "@/components/organization/BrregSuggestionsSection";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 type OrgDetails = {
   id: string;
@@ -62,7 +65,7 @@ async function getDetails(): Promise<OrgDetails> {
     });
 
     if (!orgId) {
-      const jar = await cookies();
+      const jar = cookies();
       orgId = jar.get("orgId")?.value || null;
     }
     if (!orgId) return null;
@@ -137,51 +140,53 @@ async function getDetails(): Promise<OrgDetails> {
 }
 
 export default async function BrregPage() {
-  const org = await getDetails();
-  const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('nb-NO') : '—';
-  const fmtText = (s: string | null) => s && s.trim() ? s : '—';
-  const fmtNumber = (n: number | null) => typeof n === 'number' ? n.toLocaleString('nb-NO') : '—';
-  const brregLink = org?.raw_brreg_json?.['_links']?.self?.href || (org?.orgnr ? `https://data.brreg.no/enhetsregisteret/api/enheter/${org.orgnr}` : null);
-  const br = org?.raw_brreg_json ?? null;
-  const naceCode = br?.naeringskode1?.kode ?? org?.industry_code ?? null;
-  const naceText = br?.naeringskode1?.beskrivelse ?? null;
-  const kommune = br?.forretningsadresse?.kommune ?? null;
-  const fylke = br?.forretningsadresse?.fylke ?? null;
-  const antallAnsatte = typeof br?.antallAnsatte === 'number' ? br.antallAnsatte : null;
-  const stiftetDato = br?.stiftelsesdato ?? null;
-  const mva = !!br?.registrertIMvaregisteret;
-  const konkurs = !!br?.konkurs;
-  const avvikling = !!br?.underAvvikling;
-  const slettetDato = br?.slettedato ?? br?.slettetDato ?? null;
-  const parent = br?.morselskap || (br?.overordnetEnhet ? { organisasjonsnummer: br.overordnetEnhet } : null);
-  const foretaksreg = !!br?.registrertIForetaksregisteret;
-  const frivillighet = !!br?.registrertIFrivillighetsregisteret;
-  const stiftelser = !!br?.registrertIStiftelsesregisteret;
-  const arbeidsgiverreg = !!br?.registrertIArbeidsgiverregisteret;
-  const tvangsavvikling = !!br?.underTvangsavviklingEllerTvangsopplosning;
-  const sektorKode = br?.institusjonellSektorkode?.kode ?? null;
-  const sektorTekst = br?.institusjonellSektorkode?.beskrivelse ?? null;
-  const naeringskoder = [br?.naeringskode1, br?.naeringskode2, br?.naeringskode3].filter(Boolean) as any[];
-  const tel = br?.telefon ?? br?.telefonnummer ?? null;
-  const mail = br?.epost ?? br?.epostadresse ?? null;
-  const web = br?.hjemmeside ?? br?.hjemmesideadresse ?? br?.internettside ?? null;
-  const techs: any[] = Array.isArray((org as any)?.tech_stack) ? (org as any).tech_stack : [];
-  const techByCategory: Record<string, { name: string; version: string | null }[]> = {};
-  for (const t of techs) {
-    const cats = Array.isArray((t as any)?.categories) && (t as any).categories.length ? (t as any).categories : ['Annet'];
-    for (const c of cats) {
-      techByCategory[c] = techByCategory[c] || [];
-      techByCategory[c].push({ name: (t as any).name, version: (t as any).version ?? null });
+  const _h = headers(); const _c = cookies();
+  try {
+    const org = await getDetails();
+    const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('nb-NO') : '—';
+    const fmtText = (s: string | null) => s && s.trim() ? s : '—';
+    const fmtNumber = (n: number | null) => typeof n === 'number' ? n.toLocaleString('nb-NO') : '—';
+    const brregLink = org?.raw_brreg_json?.['_links']?.self?.href || (org?.orgnr ? `https://data.brreg.no/enhetsregisteret/api/enheter/${org.orgnr}` : null);
+    const br = org?.raw_brreg_json ?? null;
+    const naceCode = br?.naeringskode1?.kode ?? org?.industry_code ?? null;
+    const naceText = br?.naeringskode1?.beskrivelse ?? null;
+    const kommune = br?.forretningsadresse?.kommune ?? null;
+    const fylke = br?.forretningsadresse?.fylke ?? null;
+    const antallAnsatte = typeof br?.antallAnsatte === 'number' ? br.antallAnsatte : null;
+    const stiftetDato = br?.stiftelsesdato ?? null;
+    const mva = !!br?.registrertIMvaregisteret;
+    const konkurs = !!br?.konkurs;
+    const avvikling = !!br?.underAvvikling;
+    const slettetDato = br?.slettedato ?? br?.slettetDato ?? null;
+    const parent = br?.morselskap || (br?.overordnetEnhet ? { organisasjonsnummer: br.overordnetEnhet } : null);
+    const foretaksreg = !!br?.registrertIForetaksregisteret;
+    const frivillighet = !!br?.registrertIFrivillighetsregisteret;
+    const stiftelser = !!br?.registrertIStiftelsesregisteret;
+    const arbeidsgiverreg = !!br?.registrertIArbeidsgiverregisteret;
+    const tvangsavvikling = !!br?.underTvangsavviklingEllerTvangsopplosning;
+    const sektorKode = br?.institusjonellSektorkode?.kode ?? null;
+    const sektorTekst = br?.institusjonellSektorkode?.beskrivelse ?? null;
+    const naeringskoder = [br?.naeringskode1, br?.naeringskode2, br?.naeringskode3].filter(Boolean) as any[];
+    const tel = br?.telefon ?? br?.telefonnummer ?? null;
+    const mail = br?.epost ?? br?.epostadresse ?? null;
+    const web = br?.hjemmeside ?? br?.hjemmesideadresse ?? br?.internettside ?? null;
+    const techs: any[] = Array.isArray((org as any)?.tech_stack) ? (org as any).tech_stack : [];
+    const techByCategory: Record<string, { name: string; version: string | null }[]> = {};
+    for (const t of techs) {
+      const cats = Array.isArray((t as any)?.categories) && (t as any).categories.length ? (t as any).categories : ['Annet'];
+      for (const c of cats) {
+        techByCategory[c] = techByCategory[c] || [];
+        techByCategory[c].push({ name: (t as any).name, version: (t as any).version ?? null });
+      }
     }
-  }
 
-  const fmtAddrObj = (a: any): string => {
-    if (!a) return '—';
-    const street = Array.isArray(a.adresse) ? a.adresse.join(' ') : (a.adresse || a.adresselinje1 || a.adresselinje2 || a.adresselinje3);
-    const parts = [street, a.postnummer, a.poststed, a.land];
-    return parts.filter((p) => !!(typeof p === 'string' ? p.trim() : p)).join(', ') || '—';
-  };
-  return (
+    const fmtAddrObj = (a: any): string => {
+      if (!a) return '—';
+      const street = Array.isArray(a.adresse) ? a.adresse.join(' ') : (a.adresse || a.adresselinje1 || a.adresselinje2 || a.adresselinje3);
+      const parts = [street, a.postnummer, a.poststed, a.land];
+      return parts.filter((p) => !!(typeof p === 'string' ? p.trim() : p)).join(', ') || '—';
+    };
+    return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-gray-200 bg-white/70 backdrop-blur p-4 shadow-sm">
         <div className="text-sm font-medium">BRREG – Valgt organisasjon</div>
@@ -260,6 +265,7 @@ export default async function BrregPage() {
           <EnrichNowButton orgnr={org?.orgnr} className="ml-auto" />
         </div>
       </div>
+      {org ? <BrregSuggestionsSection /> : null}
       {/* Teknologisk profil (Tech Stack) */}
       <div className="rounded-2xl border border-gray-200 bg-white/70 backdrop-blur p-4 shadow-sm">
         <div className="flex items-center justify-between">
@@ -496,7 +502,14 @@ export default async function BrregPage() {
         )}
       </div>
     </div>
-  );
+    );
+  } catch (e: any) {
+    console.error('BRREG page error', { msg: e?.message, stack: e?.stack });
+    return (
+      <div className="p-6">
+        <h2 className="text-lg font-semibold">Kunne ikke laste BRREG</h2>
+        <p className="text-sm text-muted-foreground">Prøv igjen senere, eller oppdater fra BRREG i profil-siden.</p>
+      </div>
+    );
+  }
 }
-
-
