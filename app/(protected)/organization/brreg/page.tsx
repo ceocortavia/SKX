@@ -1,4 +1,5 @@
 import { headers, cookies } from "next/headers";
+import { getBrregEnhetSafe } from "@/lib/brreg";
 import { auth } from "@clerk/nextjs/server";
 import pool from "@/lib/db";
 import { withGUC } from "@/lib/withGUC";
@@ -139,18 +140,34 @@ async function getDetails(): Promise<OrgDetails> {
   }
 }
 
-export default async function BrregPage() {
+export default async function BrregPage({ searchParams }: { searchParams?: Record<string, string> }) {
   const _h = headers(); const _c = await cookies();
   try {
     const org = await getDetails();
     console.log('BRREG page orgnr', org?.orgnr);
-    const orgnrClean = (org?.orgnr || '').replace(/\D/g, '');
+    const queryOrgnr = (searchParams?.orgnr || '').replace(/\D/g, '');
+    const orgnrClean = (queryOrgnr || org?.orgnr || '').replace(/\D/g, '');
     if (!orgnrClean || orgnrClean.length !== 9) {
       return (
         <div className="p-6">
           <h2 className="text-lg font-semibold">Mangler organisasjonsnummer</h2>
           <p className="text-sm text-muted-foreground">
-            Velg/oppdater organisasjonen på profilsiden først.
+            Velg/oppdater organisasjonen på profilsiden først. Du kan også teste med <code className="mx-1">?orgnr=920123456</code>.
+          </p>
+        </div>
+      );
+    }
+
+    const safeRes = await getBrregEnhetSafe(orgnrClean);
+    if (!safeRes.ok) {
+      return (
+        <div className="p-6">
+          <h2 className="text-lg font-semibold">Kunne ikke laste BRREG</h2>
+          <p className="text-sm text-muted-foreground">
+            {`Status: ${safeRes.status || 'ukjent'}${safeRes.error ? ` (${safeRes.error})` : ''}`} — orgnr {orgnrClean}.
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Prøv igjen senere, eller oppdater fra BRREG i profil-siden.
           </p>
         </div>
       );

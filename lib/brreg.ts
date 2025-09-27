@@ -15,6 +15,41 @@ export interface BrregOrgDetails {
   raw_json?: any;
 }
 
+export const BRREG_OPEN = 'https://data.brreg.no/enhetsregisteret/api';
+
+export type BrregResult<T = any> = {
+  ok: boolean;
+  status: number;
+  data?: T;
+  error?: string;
+  fetchedAt: number;
+};
+
+async function fetchOpen<T>(orgnr: string): Promise<BrregResult<T>> {
+  const url = `${BRREG_OPEN}/enheter/${orgnr}`;
+  const t0 = Date.now();
+  try {
+    const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
+    const fetchedAt = Date.now();
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: `open_${res.status}`, fetchedAt };
+    }
+    const data = (await res.json()) as T;
+    return { ok: true, status: 200, data, fetchedAt };
+  } catch (e: any) {
+    return { ok: false, status: 0, error: `network_${String(e?.message || e)}`, fetchedAt: Date.now() };
+  }
+}
+
+export async function getBrregEnhetSafe(orgnr: string): Promise<BrregResult> {
+  const mode = (process.env.BRREG_MODE || 'open').trim().toLowerCase();
+  if (mode !== 'open') {
+    // Autorisert modus kan implementeres her senere (Maskinporten)
+    console.warn('[brreg.getBrregEnhetSafe] BRREG_MODE=', mode, '→ bruker åpent endepunkt');
+  }
+  return fetchOpen(orgnr);
+}
+
 export async function fetchBrregOrganization(orgnr: string): Promise<BrregOrgDetails | null> {
   if (!/^\d{9}$/.test(orgnr)) return null;
 

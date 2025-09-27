@@ -45,13 +45,12 @@ export async function GET(req: Request) {
       bodyPreview = '[unserializable]';
     }
 
-    const mode = (process.env.BRREG_MODE || 'open').trim().toLowerCase();
     return NextResponse.json({
       ok: r.ok,
       status: r.status,
       ms: r.ms,
       url,
-      mode,
+      mode: process.env.BRREG_MODE || 'open',
       bodyPreview,
       ts: new Date().toISOString()
     }, { status: r.ok ? 200 : (r.status || 500) });
