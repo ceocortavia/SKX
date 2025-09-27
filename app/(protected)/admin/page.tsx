@@ -11,16 +11,22 @@ import { ExportDropdown } from "@/lib/export-dropdown";
 import { BulkRoleChanger } from "@/lib/bulk-role-changer";
 import AnalyticsPanel from "@/components/admin/AnalyticsPanel";
 import InvitationCopyGenerator from "@/components/admin/InvitationCopyGenerator";
-import CsvImportAssistant from "@/components/admin/CsvImportAssistant";
 import AdminCopilot from "@/components/admin/AdminCopilot";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import NextDynamic from "next/dynamic";
 
 type Membership = { user_id: string; role: string; status: string; created_at: string };
 type Domain = { id: string; domain: string; verified: boolean };
 type Invitation = { id: string; email: string; requested_role: string; status: string; created_at: string };
 type Audit = { id: string; action: string; created_at: string };
 type AuditPage = { items: Audit[]; nextCursor: string | null; hasMore: boolean };
+
+const CSV_ASSISTANT_ENABLED = process.env.NEXT_PUBLIC_ENABLE_CSV_ASSISTANT === "1";
+const CsvImportAssistant = NextDynamic(() => import("@/components/admin/CsvImportAssistant"), {
+  ssr: false,
+  loading: () => null,
+});
 
 const showAnalytics = process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === "1";
 const tabs = showAnalytics 
@@ -587,7 +593,7 @@ function AdminPageInner() {
                 <ClearFiltersBtn onClear={clearMemberFilters} />
               )}
             </div>
-            <CsvImportAssistant />
+            {CSV_ASSISTANT_ENABLED ? <CsvImportAssistant /> : null}
             <div className="mb-4">
               <label className="flex items-center gap-2 text-sm">
                 <input
