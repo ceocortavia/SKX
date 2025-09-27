@@ -17,6 +17,9 @@ export default function middleware(req: NextRequest) {
     }
     return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
   }
+  if (p.startsWith('/api/_diag/')) {
+    return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
+  }
   if (p === '/api/healthz' || p === '/api/health') {
     return NextResponse.next({ headers: { 'Cache-Control': 'no-store' } });
   }
