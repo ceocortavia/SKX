@@ -60,6 +60,23 @@ Use tool get_brreg_roles with { "orgnr": "915501680" }
 Use tool get_signatur_prokura with { "orgnr": "915501680" }
 ```
 
+### chrome_probe
+
+Kall fra Cursor:
+
+```
+use tool chrome_probe { "url": "https://<prod>/organization/brreg?orgnr=920123456", "waitFor": "pre" }
+```
+
+Eksempler (lokalt):
+
+```
+use tool chrome_probe { "url": "https://skx-livid.vercel.app/organization/brreg?orgnr=920123456", "waitFor": "pre" }
+use tool chrome_probe { "url": "https://skx-livid.vercel.app/api/diag/brreg?orgnr=920123456" }
+```
+
+Toolen returnerer tittel, HTML-snutt, konsoll-logger, nettverksfeil og screenshot i base64.
+
 ## 4. Tool overview
 
 | Tool | Hva den gjør |

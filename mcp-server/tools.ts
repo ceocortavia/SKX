@@ -1,6 +1,7 @@
 import { indexDocsSemantic, searchDocsSemantic } from './docs';
 import { getBrreg, getBrregRoles, getSignaturProkura } from './brreg';
 import { maskinportenConfig, vectorConfig, fullmaktConfig } from './env';
+import { chrome_probe } from './tools.chrome';
 
 type JsonSchema = Record<string, unknown>;
 
@@ -35,6 +36,7 @@ export const tools: ToolDefinition[] = [
       return indexDocsSemantic();
     },
   },
+  chrome_probe as any,
   {
     name: 'search_docs_semantic',
     description: 'Search the documentation index using semantic similarity.',
