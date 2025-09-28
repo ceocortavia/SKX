@@ -9,7 +9,8 @@
     "clean": "rm -rf .next node_modules/.cache .vercel/cache",
     "test": "echo \"No tests specified\" && exit 0",
     "test:mcp": "node --test --loader ts-node/esm mcp-server/tests/**/*.test.ts",
-    "start:mcp": "ts-node mcp-server/index.ts",
+    "start:mcp": "tsx mcp-server/index.ts",
+    "mcp:list": "node -e \"const cp=require('child_process');const p=cp.spawn('npm',['run','start:mcp'],{stdio:['pipe','pipe','inherit']});p.stdout.on('data',d=>{const s=d.toString().trim();if(!s)return;});setTimeout(()=>{p.stdin.write(JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize'})+'\\n');p.stdin.write(JSON.stringify({jsonrpc:'2.0',id:2,method:'list_tools'})+'\\n');},600);setTimeout(()=>p.kill(),1800);\"",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "type-check": "tsc --noEmit",
@@ -50,10 +51,11 @@
     "@types/react": "^19.0.7",
     "autoprefixer": "^10.4.21",
     "express": "^5.1.0",
-    "playwright": "^1.55.1",
+    "playwright": "^1.55.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "tsx": "^4.19.2"
   }
 }
