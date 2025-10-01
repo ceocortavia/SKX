@@ -17,6 +17,23 @@ export interface BrregOrgDetails {
 
 export const BRREG_OPEN = 'https://data.brreg.no/enhetsregisteret/api';
 
+const DEFAULT_BRREG_USER_AGENT =
+  process.env.BRREG_DEFAULT_USER_AGENT ??
+  'SKX Secure Knowledge Exchange (contact@skillexia.com)';
+
+function resolveUserAgent(): string {
+  const envUa = process.env.BRREG_USER_AGENT;
+  const ua = envUa && envUa.trim().length ? envUa.trim() : DEFAULT_BRREG_USER_AGENT;
+  return ua;
+}
+
+export function getBrregRequestHeaders(): HeadersInit {
+  return {
+    accept: 'application/json',
+    'user-agent': resolveUserAgent(),
+  };
+}
+
 export type BrregResult<T = any> = {
   ok: boolean;
   status: number;
@@ -29,7 +46,7 @@ async function fetchOpen<T>(orgnr: string): Promise<BrregResult<T>> {
   const url = `${BRREG_OPEN}/enheter/${orgnr}`;
   const t0 = Date.now();
   try {
-    const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
+    const res = await fetch(url, { headers: getBrregRequestHeaders(), cache: 'no-store' });
     const fetchedAt = Date.now();
     if (!res.ok) {
       return { ok: false, status: res.status, error: `open_${res.status}`, fetchedAt };
@@ -74,7 +91,7 @@ export async function fetchBrregOrganization(orgnr: string): Promise<BrregOrgDet
     }
 
     const res = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`, {
-      headers: { accept: 'application/json' },
+      headers: getBrregRequestHeaders(),
       cache: 'no-store'
     });
     if (!res.ok) return null;
@@ -111,4 +128,3 @@ export async function fetchBrregOrganization(orgnr: string): Promise<BrregOrgDet
     return null;
   }
 }
-

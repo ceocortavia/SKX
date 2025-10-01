@@ -161,7 +161,11 @@ export default async function BrregPage(props: any) {
     }
 
     const safeRes = await getBrregEnhetSafe(orgnrClean);
-    if (!safeRes.ok) {
+    const liveBrreg = safeRes.ok ? safeRes.data ?? null : null;
+    const storedBrreg = org?.raw_brreg_json ?? null;
+    const br = liveBrreg ?? storedBrreg ?? null;
+
+    if (!br && !safeRes.ok) {
       return (
         <div className="p-6">
           <h2 className="text-lg font-semibold">Kunne ikke laste BRREG</h2>
@@ -174,11 +178,14 @@ export default async function BrregPage(props: any) {
         </div>
       );
     }
+
+    const brregStatusText = !safeRes.ok
+      ? `Status: ${safeRes.status || 'ukjent'}${safeRes.error ? ` (${safeRes.error})` : ''}`
+      : null;
     const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('nb-NO') : '—';
     const fmtText = (s: string | null) => s && s.trim() ? s : '—';
     const fmtNumber = (n: number | null) => typeof n === 'number' ? n.toLocaleString('nb-NO') : '—';
-    const brregLink = org?.raw_brreg_json?.['_links']?.self?.href || (org?.orgnr ? `https://data.brreg.no/enhetsregisteret/api/enheter/${org.orgnr}` : null);
-    const br = org?.raw_brreg_json ?? null;
+    const brregLink = br?.['_links']?.self?.href || (org?.orgnr ? `https://data.brreg.no/enhetsregisteret/api/enheter/${org.orgnr}` : null);
     const naceCode = br?.naeringskode1?.kode ?? org?.industry_code ?? null;
     const naceText = br?.naeringskode1?.beskrivelse ?? null;
     const kommune = br?.forretningsadresse?.kommune ?? null;
@@ -219,6 +226,14 @@ export default async function BrregPage(props: any) {
     };
     return (
     <div className="space-y-6">
+      {!safeRes.ok && br ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-medium">Viser lagret BRREG-data</div>
+          <p className="mt-1 text-xs sm:text-sm text-amber-800">
+            {brregStatusText ?? 'Kunne ikke hente live-data fra BRREG akkurat nå.'} Dataen under er sist lagret i SKX. Prøv «Oppdater fra BRREG» senere.
+          </p>
+        </div>
+      ) : null}
       <div className="rounded-2xl border border-gray-200 bg-white/70 backdrop-blur p-4 shadow-sm">
         <div className="text-sm font-medium">BRREG – Valgt organisasjon</div>
         {!org ? (
@@ -329,38 +344,38 @@ export default async function BrregPage(props: any) {
       </div>
 
       {/* Rik profilseksjon med ekstra felt direkte fra BRREG */}
-      {org?.raw_brreg_json ? (
+      {br ? (
         <div className="rounded-2xl border border-gray-200 bg-white/70 backdrop-blur p-4 shadow-sm">
           <div className="text-sm font-medium">Detaljer fra BRREG</div>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Orgtype/kategori */}
             <div>
               <div className="text-xs text-gray-500">Organisasjonskategori</div>
-              <div>{org.raw_brreg_json.organisasjonsform?.beskrivelse ?? '—'}</div>
+              <div>{br.organisasjonsform?.beskrivelse ?? '—'}</div>
             </div>
             {/* Sektor/NACE-tekst */}
             <div>
               <div className="text-xs text-gray-500">Næringskode (tekst)</div>
-              <div>{org.raw_brreg_json.naeringskode1?.beskrivelse ?? '—'}</div>
+              <div>{br.naeringskode1?.beskrivelse ?? '—'}</div>
             </div>
             {/* Kommune og fylke */}
             <div>
               <div className="text-xs text-gray-500">Kommune</div>
-              <div>{org.raw_brreg_json.forretningsadresse?.kommune ?? '—'}</div>
+              <div>{br.forretningsadresse?.kommune ?? '—'}</div>
             </div>
             <div>
               <div className="text-xs text-gray-500">Fylke</div>
-              <div>{org.raw_brreg_json.forretningsadresse?.fylke ?? '—'}</div>
+              <div>{br.forretningsadresse?.fylke ?? '—'}</div>
             </div>
             {/* Antall ansatte (hvis finnes) */}
             <div>
               <div className="text-xs text-gray-500">Antall ansatte</div>
-              <div>{org.raw_brreg_json.antallAnsatte ?? '—'}</div>
+              <div>{br.antallAnsatte ?? '—'}</div>
             </div>
             {/* Stiftelsesdato / stiftet */}
             <div>
               <div className="text-xs text-gray-500">Stiftet</div>
-              <div>{org.raw_brreg_json.stiftelsesdato ? new Date(org.raw_brreg_json.stiftelsesdato).toLocaleDateString('nb-NO') : '—'}</div>
+              <div>{br.stiftelsesdato ? new Date(br.stiftelsesdato).toLocaleDateString('nb-NO') : '—'}</div>
             </div>
             {/* Morselskap */}
             <div className="sm:col-span-2 lg:col-span-3">
@@ -524,11 +539,11 @@ export default async function BrregPage(props: any) {
       </div>
       <div className="rounded-2xl border border-gray-200 bg-white/70 backdrop-blur p-4 shadow-sm">
         <div className="text-sm font-medium">Rådata fra BRREG</div>
-        {!org?.raw_brreg_json ? (
+        {!br ? (
           <div className="text-sm text-gray-600 mt-1">Ingen rådata tilgjengelig.</div>
         ) : (
           <div className="mt-3">
-            <JsonViewer data={org.raw_brreg_json} maxHeight="65vh" defaultExpandedLevel={2} />
+            <JsonViewer data={br} maxHeight="65vh" defaultExpandedLevel={2} />
           </div>
         )}
       </div>

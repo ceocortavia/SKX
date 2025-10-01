@@ -1,5 +1,7 @@
 import type { PoolClient } from 'pg';
 
+import { BRREG_OPEN, getBrregRequestHeaders } from './brreg';
+
 type EnrichedOrg = {
   orgnr: string;
   name?: string | null;
@@ -19,8 +21,6 @@ function isTruthyEnv(value: string | undefined): boolean {
   return v === '1' || v === 'true' || v === 'yes';
 }
 
-const BRREG_OPEN_BASE = 'https://data.brreg.no/enhetsregisteret/api';
-
 type FetchJsonResult = { ok: boolean; status: number; ms: number; json: any };
 
 async function fetchJSON(url: string, init: RequestInit = {}, timeoutMs = 7000): Promise<FetchJsonResult> {
@@ -28,7 +28,26 @@ async function fetchJSON(url: string, init: RequestInit = {}, timeoutMs = 7000):
   const startedAt = Date.now();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { ...init, signal: controller.signal, cache: 'no-store' as RequestCache });
+    const headersFromInit = (() => {
+      if (!init.headers) return {} as Record<string, string>;
+      if (init.headers instanceof Headers) {
+        return Object.fromEntries(init.headers.entries());
+      }
+      if (Array.isArray(init.headers)) {
+        return Object.fromEntries(init.headers);
+      }
+      return init.headers as Record<string, string>;
+    })();
+    const mergedHeaders = {
+      ...getBrregRequestHeaders(),
+      ...headersFromInit,
+    };
+    const res = await fetch(url, {
+      ...init,
+      headers: mergedHeaders,
+      signal: controller.signal,
+      cache: 'no-store' as RequestCache,
+    });
     const text = await res.text();
     let json: any;
     try {
@@ -62,9 +81,7 @@ async function fetchBrreg(orgnr: string): Promise<Partial<EnrichedOrg> | null> {
       console.warn('[enrich.brreg] BRREG_MODE set to', mode, '— using open fallback');
     }
 
-    const r = await fetchJSON(`${BRREG_OPEN_BASE}/enheter/${orgnr}`, {
-      headers: { accept: 'application/json' }
-    });
+    const r = await fetchJSON(`${BRREG_OPEN}/enheter/${orgnr}`);
     if (!r.ok) {
       console.warn('[enrich.brreg] open fetch failed', { status: r.status, ms: r.ms, orgnr });
       return null;
@@ -167,11 +184,3 @@ export async function enrichOrganizationData(orgnr: string, client: PoolClient):
     ]
   );
 }
-
-
-
-
-
-
-
-
