@@ -28,7 +28,9 @@ export const chrome_probe = {
       url: { type: 'string', description: 'Full URL (https://...)' },
       waitFor: { type: 'string', description: 'CSS-selector å vente på', nullable: true },
       timeout_ms: { type: 'number', description: 'Timeout i ms', nullable: true },
+      baseURL: { type: 'string', description: 'Base-URL for fetch-handlinger (prefiks for relative URLer)', nullable: true },
       storage_state_path: { type: 'string', description: 'Filsti til Playwright storageState JSON', nullable: true },
+      saveStorageState: { type: 'boolean', description: 'Lagre gjeldende storageState til storage_state_path', nullable: true },
       cookies: {
         type: 'array',
         description: 'Valgfritt: cookies å injisere (f.eks. Clerk __session). Bruk i stedet for storage_state_path.',
@@ -59,7 +61,13 @@ export const chrome_probe = {
             delayMs: { type: 'number', nullable: true },
             timeoutMs: { type: 'number', nullable: true },
             ms: { type: 'number', nullable: true },
-            key: { type: 'string', nullable: true }
+            key: { type: 'string', nullable: true },
+            url: { type: 'string', nullable: true },
+            method: { type: 'string', nullable: true },
+            headers: { type: 'object', nullable: true },
+            body: { type: 'string', nullable: true },
+            expectStatus: { type: 'number', nullable: true },
+            expectText: { type: 'string', nullable: true }
           }
         },
         nullable: true
@@ -68,8 +76,8 @@ export const chrome_probe = {
     },
     required: ['url']
   },
-  handler: async (args: { url: string; waitFor?: string; timeout_ms?: number; storage_state_path?: string; cookies?: Array<{ name: string; value: string; domain: string; path?: string; secure?: boolean; httpOnly?: boolean; sameSite?: 'Lax'|'None'|'Strict' }>; actions?: Array<any>; expectText?: string; }) => {
-    const { url, waitFor, timeout_ms, storage_state_path, cookies, actions, expectText } = args;
+  handler: async (args: { url: string; waitFor?: string; timeout_ms?: number; baseURL?: string; storage_state_path?: string; saveStorageState?: boolean; cookies?: Array<{ name: string; value: string; domain: string; path?: string; secure?: boolean; httpOnly?: boolean; sameSite?: 'Lax'|'None'|'Strict' }>; actions?: Array<any>; expectText?: string; }) => {
+    const { url, waitFor, timeout_ms, baseURL, storage_state_path, saveStorageState, cookies, actions, expectText } = args;
     if (!isAllowed(url)) {
       return {
         type: 'json',
@@ -113,6 +121,7 @@ export const chrome_probe = {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: t });
       if (waitFor) await page.waitForSelector(waitFor, { timeout: t });
 
+      const actionResults: any[] = [];
       if (Array.isArray(actions)) {
         for (const step of actions) {
           switch (step?.type) {
@@ -131,6 +140,34 @@ export const chrome_probe = {
             case 'sleep':
               await page.waitForTimeout(step.ms ?? 300);
               break;
+            case 'fetch': {
+              const rel = typeof step.url === 'string' ? step.url : '';
+              const full = rel && !/^https?:/i.test(rel) ? ((baseURL || '').replace(/\/$/, '') + (rel.startsWith('/') ? rel : ('/' + rel))) : rel;
+              const target = full || rel;
+              if (!target) {
+                actionResults.push({ type: 'fetch', error: 'missing_url' });
+                break;
+              }
+              // Allowlist check for target
+              if (!isAllowed(target)) {
+                actionResults.push({ type: 'fetch', url: target, error: 'url_not_allowed' });
+                break;
+              }
+              const method = (step.method || 'GET').toUpperCase();
+              const headers = (step.headers && typeof step.headers === 'object') ? step.headers : undefined;
+              const body = typeof step.body === 'string' ? step.body : undefined;
+              const resp = await page.request.fetch(target, { method, headers, data: body });
+              const status = resp.status();
+              const text = await resp.text();
+              actionResults.push({ type: 'fetch', url: target, status, bodyPreview: text.slice(0, 2000) });
+              if (typeof step.expectStatus === 'number' && status !== step.expectStatus) {
+                pass = false; failure = `fetch_unexpected_status:${status}`;
+              }
+              if (typeof step.expectText === 'string' && !text.includes(step.expectText)) {
+                pass = false; failure = `fetch_expect_text_missing`;
+              }
+              break;
+            }
           }
         }
       }
@@ -141,6 +178,12 @@ export const chrome_probe = {
           pass = false;
           failure = `expect_text_not_found:${expectText}`;
         }
+      }
+      // Save storage state if requested
+      if (pass && saveStorageState && storage_state_path) {
+        try {
+          await context.storageState({ path: storage_state_path });
+        } catch {}
       }
     } catch (e: any) {
       pass = false;
@@ -164,7 +207,8 @@ export const chrome_probe = {
         htmlSnippet: html.slice(0, 2000),
         consoleLogs: consoleLogs.slice(-100),
         requestErrors: requestErrors.slice(-100),
-        screenshot_png_base64: png.toString('base64')
+        screenshot_png_base64: png.toString('base64'),
+        baseURL: baseURL ?? null
       } }]
     };
   }
