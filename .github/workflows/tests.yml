@@ -25,6 +25,9 @@ jobs:
       DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      # Offboarding feature flags
+      ENABLE_OFFBOARDING_API: '1'
+      NEXT_PUBLIC_OFFBOARDING_ENABLED: '1'
 
     steps:
       - name: Checkout repo

@@ -7,3 +7,7 @@ node_modules
 /.clerk/
 .env*.local
 .tmp_secret_val
+dev.log
+playwright-report/
+test-results/
+tsconfig.tsbuildinfo
