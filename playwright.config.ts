@@ -23,10 +23,15 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       TEST_AUTH_BYPASS: '1',
+      ENABLE_QA_BYPASS: '1',
+      TEST_BYPASS_SECRET: 'test-secret-123',
       NODE_ENV: process.env.NODE_ENV || 'development',
       ADMIN_BULK_MEMBERS_ENABLED: '1',
       ADMIN_BULK_ROLE_ENABLED: '1',
       ADMIN_BULK_REVOCATION_ENABLED: '1',
+      ENABLE_OFFBOARDING_API: '1',
+      NEXT_PUBLIC_OFFBOARDING_ENABLED: '1',
+      ENABLE_DB_ONLY_ARTIFACTS: '1',
       NEXT_PUBLIC_DEV_BYPASS_USER_ID: process.env.NEXT_PUBLIC_DEV_BYPASS_USER_ID || 'user_a',
       NEXT_PUBLIC_DEV_BYPASS_EMAIL: process.env.NEXT_PUBLIC_DEV_BYPASS_EMAIL || 'a@example.com',
     }

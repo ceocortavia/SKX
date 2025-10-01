@@ -2,6 +2,8 @@ import { APIResponse, APIRequestContext, expect } from '@playwright/test';
 
 export const defaultHeaders: Record<string, string> = {
   'content-type': 'application/json',
+  'x-test-bypass': '1',
+  'x-test-secret': 'test-secret-123',
   'x-test-clerk-user-id': process.env.NEXT_PUBLIC_DEV_BYPASS_USER_ID || 'user_a',
   'x-test-clerk-email': process.env.NEXT_PUBLIC_DEV_BYPASS_EMAIL || 'a@example.com',
   'x-test-mfa': 'on',

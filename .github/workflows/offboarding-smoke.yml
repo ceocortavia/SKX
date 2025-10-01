@@ -1,0 +1,104 @@
+name: Offboarding Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app/api/offboarding/**'
+      - 'tests/api.offboarding.spec.ts'
+      - 'scripts/smoke-test-offboarding.sh'
+      - '.github/workflows/offboarding-smoke.yml'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    # Only run on PRs from the same repo (not forks)
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    
+    env:
+      # Preview deployment URL (set in repo → Variables)
+      PREVIEW_URL: ${{ vars.PREVIEW_URL || 'http://localhost:3100' }}
+      
+      # Test user email (set in repo → Variables)
+      TEST_USER_EMAIL: ${{ vars.TEST_USER_EMAIL || 'a@example.com' }}
+      
+      # QA bypass for preview only (set in repo → Secrets)
+      TEST_BYPASS_SECRET: ${{ secrets.TEST_BYPASS_SECRET || 'test-secret-123' }}
+      ENABLE_QA_BYPASS: '1'
+      
+      # Offboarding feature flags
+      ENABLE_OFFBOARDING_API: '1'
+      NEXT_PUBLIC_OFFBOARDING_ENABLED: '1'
+      ENABLE_DB_ONLY_ARTIFACTS: '1'
+      
+      # Database for verification (optional)
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        run: |
+          BASE_URL="$PREVIEW_URL" \
+          USER_EMAIL="$TEST_USER_EMAIL" \
+          TEST_BYPASS_SECRET="$TEST_BYPASS_SECRET" \
+          npx playwright test tests/api.offboarding.spec.ts \
+            --project=chromium \
+            --reporter=list
+
+      - name: Check diagnostics endpoint
+        if: always()
+        run: |
+          curl -sS "$PREVIEW_URL/api/diag/offboarding" \
+            -H "x-test-bypass: 1" \
+            -H "x-test-secret: $TEST_BYPASS_SECRET" \
+            | jq . || echo "Diagnostics check failed"
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+# Setup instructions:
+# 
+# 1. Add GitHub Variables (Settings → Secrets and variables → Actions → Variables):
+#    - PREVIEW_URL: https://your-preview-url.vercel.app
+#    - TEST_USER_EMAIL: a@example.com
+#
+# 2. Add GitHub Secrets (Settings → Secrets and variables → Actions → Secrets):
+#    - TEST_BYPASS_SECRET: <secure-random-string>
+#    - NEON_DATABASE_URL: <your-database-url> (optional)
+#
+# 3. Ensure test user exists in database with memberships
+#
+# 4. Workflow triggers on:
+#    - Manual dispatch (Actions → Offboarding Smoke → Run workflow)
+#    - Pull requests that modify offboarding code
+
+
+
